@@ -1,6 +1,6 @@
 // hooks/useAuth.ts
 import { useEffect } from 'react';
-import { useAuthStore } from '@/app/stores/authStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'expo-router';
 
 export function useAuth(requireAuth = false) {
@@ -17,7 +17,7 @@ export function useAuth(requireAuth = false) {
     // Redirect to login if auth is required but user is not authenticated
     useEffect(() => {
         if (requireAuth && !isLoading && !isAuthenticated) {
-            router.replace('/auth/login');
+            //router.replace('/auth/login');
         }
     }, [requireAuth, isLoading, isAuthenticated, router]);
 

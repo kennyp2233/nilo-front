@@ -1,74 +1,116 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import TripMap from '@/components/maps/TripMap';
 import TripSheet from '@/components/trips/TripSheet';
-import { LocationService } from '@/services/location.service';
-import { debounce } from 'lodash';
+import { useLocation } from '@/hooks/useLocation';
+import { useTrip } from '@/hooks/useTrip';
+import { Location } from '@/stores/locationStore';
+import { useTheme } from '@/theme/ThemeContext';
 
 const TripPlanner = () => {
+    const { colors } = useTheme();
     const [expanded, setExpanded] = useState(false);
-    const [origin, setOrigin] = useState<any | null>(null);
-    const [destination, setDestination] = useState<any | null>(null);
     const [selectingType, setSelectingType] = useState<'origin' | 'destination' | null>(null);
 
+    // Get location and trip hooks
+    const {
+        getLocationFromCoordinates,
+        handleLocationSelect,
+        calculateRoute
+    } = useLocation();
 
-    const debouncedHandleLocationSelected = debounce(
-        async (coords: { latitude: number; longitude: number }) => {
-            try {
-                const location = await LocationService.reverseGeocode(coords.latitude, coords.longitude);
-                if (location) {
-                    // Si se está seleccionando "origin" o, en la carga inicial (selectingType es null y origin no está seteado),
-                    // asumimos que se quiere definir el origin.
-                    if (selectingType === 'origin') {
-                        setOrigin(location);
-                    } else {
-                        setDestination(location);
-                    }
-                    setSelectingType(null);
-                    setExpanded(true);
-                }
-            } catch (error) {
-                console.error('Error getting location from coordinates:', error);
-            }
-        },
-        500, // espera 500ms después de la última acción
-        { leading: false, trailing: true }
-    );
+    const {
+        origin,
+        destination,
+        setOrigin,
+        setDestination,
+        createTrip,
+        isLoading,
+        error,
+        route,
+        clearError
+    } = useTrip();
 
-    const handleLocationSelected = async (coords: { latitude: number; longitude: number }) => {
-        // 🚀 Si es la PRIMERA VEZ, no usar debounce
-        if (!selectingType && !origin) {
-            try {
-                const location = await LocationService.reverseGeocode(coords.latitude, coords.longitude);
-                if (location) {
-                    setOrigin(location);
-                }
-            } catch (error) {
-                console.error('Error getting location from coordinates:', error);
-            }
-            return; // 🔥 Evita que pase por el debounce
+    // Show error if any
+    useEffect(() => {
+        if (error) {
+            Alert.alert('Error', error);
+            clearError();
         }
+    }, [error]);
 
-        // 🚀 Si es una selección en el mapa, usar debounce
-        debouncedHandleLocationSelected(coords);
+    // Calculate route when origin and destination are set
+    useEffect(() => {
+        const fetchRouteData = async () => {
+            if (origin && destination) {
+                try {
+                    await calculateRoute(origin, destination);
+                } catch (error) {
+                    console.error('Error calculating route:', error);
+                }
+            }
+        };
+
+        fetchRouteData();
+    }, [origin, destination]);
+
+    // Handle map location selection
+    const handleMapLocationSelected = async (coords: { latitude: number; longitude: number }) => {
+        try {
+            const location = await getLocationFromCoordinates(coords);
+
+            if (location) {
+                if (selectingType === 'origin' || (!selectingType && !origin)) {
+                    setOrigin(location);
+                } else if (selectingType === 'destination' || (!selectingType && !destination)) {
+                    setDestination(location);
+                }
+
+                setSelectingType(null);
+                setExpanded(true);
+            }
+        } catch (error) {
+            console.error('Error getting location from coordinates:', error);
+        }
     };
 
-    const handleLocationSelect = async (
+    // Handle location selection from search or recent locations
+    const handleLocationSelection = async (
         type: 'origin' | 'destination',
-        location: any | null
+        location: Location | null
     ) => {
         if (location) {
-            // Si se seleccionó una ubicación desde la búsqueda
+            // Location selected from search or recents
             if (type === 'origin') {
                 setOrigin(location);
+                await handleLocationSelect(location);
             } else {
                 setDestination(location);
+                await handleLocationSelect(location);
             }
+            setSelectingType(null);
         } else {
-            // Si se va a seleccionar en el mapa
+            // User wants to select on map
             setSelectingType(type);
             setExpanded(false);
+        }
+    };
+
+    // Request a trip
+    const handleRequestTrip = async () => {
+        if (!origin || !destination) {
+            Alert.alert('Error', 'Please set both origin and destination');
+            return;
+        }
+
+        try {
+            const trip = await createTrip();
+            if (trip) {
+                Alert.alert('Success', 'Trip request sent successfully!');
+            }
+        } catch (error) {
+            console.error('Error creating trip:', error);
         }
     };
 
@@ -77,15 +119,18 @@ const TripPlanner = () => {
             <TripMap
                 origin={origin ? { latitude: origin.latitude, longitude: origin.longitude } : undefined}
                 destination={destination ? { latitude: destination.latitude, longitude: destination.longitude } : undefined}
-                onLocationSelected={handleLocationSelected}
+                onLocationSelected={handleMapLocationSelected}
                 selectingType={selectingType}
+                route={route}
             />
             <TripSheet
                 expanded={expanded}
                 onExpandedChange={setExpanded}
-                onLocationSelect={handleLocationSelect}
+                onLocationSelect={handleLocationSelection}
                 origin={origin}
                 destination={destination}
+                onRequestTrip={handleRequestTrip}
+                isLoading={isLoading}
             />
         </GestureHandlerRootView>
     );

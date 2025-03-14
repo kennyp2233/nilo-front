@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // API Base URL - Use environment variable or default to localhost
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
 
 class ApiService {
     private api: AxiosInstance;
@@ -15,6 +15,7 @@ class ApiService {
             headers: {
                 'Content-Type': 'application/json',
             },
+            timeout: 10000
         });
 
         // Add request interceptor to attach auth token
@@ -69,15 +70,27 @@ class ApiService {
         await AsyncStorage.removeItem('auth_token');
     }
 
-    // Generic request method
     private async request<T>(config: AxiosRequestConfig): Promise<T> {
         try {
             const response: AxiosResponse<T> = await this.api(config);
+            console.log(`API Response (${config.method} ${config.url}):`, response.data);
             return response.data;
         } catch (error: any) {
-            // Handle error and provide meaningful message
-            const message = error.response?.data?.message || error.message || 'Something went wrong';
-            console.error(`API Error (${config.method} ${config.url}):`, message);
+            console.error(`❌ API Error (${config.method} ${config.url}):`, {
+                message: error.message,
+                status: error.response?.status || 'No response',
+                data: error.response?.data || 'No response data',
+                request: {
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    headers: error.config?.headers,
+                    params: error.config?.params,
+                    data: error.config?.data
+                },
+                code: error.code,
+                stack: error.stack
+            });
+
             throw error;
         }
     }

@@ -1,15 +1,19 @@
 // components/SearchMode.tsx
 import React from "react";
-import { View, Pressable, Text, TextInput, StyleSheet, ScrollView } from "react-native";
+import { View, Pressable, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/theme/ThemeContext";
-import { useLocationSearch } from "@/hooks/useLocationSearch";
+import { Location } from "@/stores/locationStore";
 
 interface SearchModeProps {
     activeSearchType: "origin" | "destination";
     onBack: () => void;
-    onSelectLocation: (location: any) => void;
+    onSelectLocation: (location: Location) => void;
     onSelectManually: () => void;
+    searchQuery: string;
+    searchResults: Location[];
+    isSearching: boolean;
+    onSearchChange: (query: string) => void;
 }
 
 const SearchMode: React.FC<SearchModeProps> = ({
@@ -17,9 +21,12 @@ const SearchMode: React.FC<SearchModeProps> = ({
     onBack,
     onSelectLocation,
     onSelectManually,
+    searchQuery,
+    searchResults,
+    isSearching,
+    onSearchChange,
 }) => {
     const { colors } = useTheme();
-    const { searchQuery, searchResults, handleSearch } = useLocationSearch();
 
     return (
         <View style={styles.searchMode}>
@@ -33,34 +40,52 @@ const SearchMode: React.FC<SearchModeProps> = ({
                         style={[styles.input, { color: colors.text.primary }]}
                         placeholder={`Buscar ${activeSearchType === "origin" ? "origen" : "destino"}`}
                         value={searchQuery}
-                        onChangeText={handleSearch}
+                        onChangeText={onSearchChange}
                         placeholderTextColor={colors.text.secondary}
                         autoFocus
                     />
+                    {isSearching && (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    )}
                 </View>
             </View>
 
             <ScrollView style={styles.searchResults}>
-                {searchResults.map((result) => (
-                    <Pressable
-                        key={result.id}
-                        style={styles.resultItem}
-                        onPress={() => onSelectLocation(result)}
-                    >
-                        <Ionicons name="location" size={20} color={colors.text.secondary} />
-                        <View style={styles.resultText}>
-                            <Text style={[styles.resultTitle, { color: colors.text.primary }]}>
-                                {result.name}
-                            </Text>
-                            <Text style={[styles.resultAddress, { color: colors.text.secondary }]}>
-                                {result.displayName}
-                            </Text>
-                        </View>
-                    </Pressable>
-                ))}
+                {searchResults.length > 0 ? (
+                    searchResults.map((result) => (
+                        <Pressable
+                            key={result.id || `${result.latitude}-${result.longitude}`}
+                            style={[styles.resultItem, { borderBottomColor: colors.border }]}
+                            onPress={() => onSelectLocation(result)}
+                        >
+                            <Ionicons name="location" size={20} color={colors.text.secondary} />
+                            <View style={styles.resultText}>
+                                <Text style={[styles.resultTitle, { color: colors.text.primary }]}>
+                                    {result.name || "Ubicación"}
+                                </Text>
+                                <Text style={[styles.resultAddress, { color: colors.text.secondary }]}>
+                                    {result.displayName ||
+                                        (result.address ?
+                                            `${result.address.street || ''}, ${result.address.city || ''}` :
+                                            `${result.latitude.toFixed(5)}, ${result.longitude.toFixed(5)}`)}
+                                </Text>
+                            </View>
+                        </Pressable>
+                    ))
+                ) : searchQuery.length >= 3 && !isSearching ? (
+                    <View style={styles.noResults}>
+                        <Ionicons name="search-outline" size={24} color={colors.text.secondary} />
+                        <Text style={[styles.noResultsText, { color: colors.text.secondary }]}>
+                            No se encontraron resultados
+                        </Text>
+                    </View>
+                ) : null}
 
                 {/* Opción para seleccionar manualmente */}
-                <Pressable style={styles.manualSelection} onPress={onSelectManually}>
+                <Pressable
+                    style={[styles.manualSelection, { borderTopColor: colors.border }]}
+                    onPress={onSelectManually}
+                >
                     <Ionicons name="navigate" size={20} color={colors.text.secondary} />
                     <Text style={[styles.manualSelectionText, { color: colors.text.primary }]}>
                         Seleccionar ubicación en el mapa
@@ -104,7 +129,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: "#E5E5EA",
     },
     resultText: {
         flex: 1,
@@ -118,16 +142,24 @@ const styles = StyleSheet.create({
     resultAddress: {
         fontSize: 14,
     },
+    noResults: {
+        alignItems: "center",
+        padding: 24,
+        gap: 8,
+    },
+    noResultsText: {
+        fontSize: 16,
+    },
     manualSelection: {
         flexDirection: "row",
         alignItems: "center",
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: "#E5E5EA",
     },
     manualSelectionText: {
         fontSize: 16,
         fontWeight: "500",
+        marginLeft: 12,
     },
 });
 

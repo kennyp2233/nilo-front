@@ -21,7 +21,7 @@ export default function MainLayout() {
             </View>
             <CustomTabs
                 tabs={[
-                    { name: "/home", title: "Inicio", icon: "home" },
+                    { name: "/passenger", title: "Inicio", icon: "home" },
                     { name: "/profile", title: "Perfil", icon: "person" },
                     { name: "/settings", title: "Ajustes", icon: "settings" },
                 ]}

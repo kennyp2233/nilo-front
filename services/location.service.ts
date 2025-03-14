@@ -17,7 +17,8 @@ export class LocationService {
     // Reverse geocode coordinates to address
     static async reverseGeocode(latitude: number, longitude: number): Promise<any | null> {
         try {
-            return await apiService.reverseGeocode(latitude, longitude);
+            console.log('Reverse geocoding coordinates:', latitude, longitude);
+            return await apiService.reverseGeocode(latitude, longitude).then(console.log);
         } catch (error) {
             console.error('Error reverse geocoding:', error);
             return null;

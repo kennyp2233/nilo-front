@@ -2,8 +2,6 @@
 import React from "react";
 import { View, ScrollView, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/ThemeContext";
-import TopTabs from "@/components/passenger/TopTabs";
-import CustomTabs from "@/components/common/CustomTabs";
 import SearchBar from "@/components/passenger/SearchBar";
 import RecentTrips from "@/components/passenger/RecentTrips";
 import Suggestions from "@/components/passenger/Suggestions";
@@ -73,7 +71,6 @@ export default function HomeScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
 
-
             <ScrollView style={{ padding: 16 }}>
                 <View style={{ gap: 12 }}>
                     <SearchBar />
@@ -83,7 +80,7 @@ export default function HomeScreen() {
                 </View>
             </ScrollView>
 
-        </View> 
+        </View>
     );
 }
 
