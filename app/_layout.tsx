@@ -1,4 +1,4 @@
-import { ThemeProvider, useTheme } from "@/theme/ThemeContext";
+import { ThemeProvider, useTheme } from "@/src/theme/ThemeContext";
 import { Slot } from "expo-router";
 
 import { ReactNode } from 'react';
@@ -12,7 +12,6 @@ export default function MainLayout() {
         <ThemeProvider>
             <View style={{ flex: 1, backgroundColor: colors.background.primary }}>
                 <Slot />
-                <StatusBar style="auto" />
             </View>
 
         </ThemeProvider>

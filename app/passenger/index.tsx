@@ -1,11 +1,11 @@
 // src/app/(passenger)/index.tsx
 import React from "react";
 import { View, ScrollView, StyleSheet } from "react-native";
-import { useTheme } from "@/theme/ThemeContext";
-import SearchBar from "@/components/passenger/SearchBar";
-import RecentTrips from "@/components/passenger/RecentTrips";
-import Suggestions from "@/components/passenger/Suggestions";
-import Promotions from "@/components/passenger/Promotions";
+import { useTheme } from "@/src/theme/ThemeContext";
+import SearchBar from "@/src/components/passenger/SearchBar";
+import RecentTrips from "@/src/components/passenger/RecentTrips";
+import Suggestions from "@/src/components/passenger/Suggestions";
+import Promotions from "@/src/components/passenger/Promotions";
 
 
 const recentTrips = [

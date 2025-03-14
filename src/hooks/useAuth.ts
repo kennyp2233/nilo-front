@@ -1,6 +1,6 @@
 // hooks/useAuth.ts
 import { useEffect } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/src/stores/authStore';
 import { useRouter } from 'expo-router';
 
 export function useAuth(requireAuth = false) {

@@ -1,7 +1,7 @@
 // stores/tripStore.ts
 import { create } from 'zustand';
-import { apiService } from '@/services/api.service';
-import { LocationService } from '@/services/location.service';
+import { apiService } from '@/src/services/api.service';
+import { LocationService } from '@/src/services/location.service';
 
 export interface Location {
     latitude: number;

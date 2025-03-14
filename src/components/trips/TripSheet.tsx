@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/theme/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 import BottomSheet from "../common/BottomSheet";
 import RecentTrips from "../passenger/RecentTrips";
 import LocationInput from "./LocationInput";
 import SearchMode from "./SearchMode";
-import { Location } from "@/stores/locationStore";
-import { useLocation } from "@/hooks/useLocation";
+import { Location } from "@/src/stores/locationStore";
+import { useLocation } from "@/src/hooks/useLocation";
 
 interface TripSheetProps {
     expanded: boolean;

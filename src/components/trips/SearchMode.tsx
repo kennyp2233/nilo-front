@@ -2,8 +2,8 @@
 import React, { useEffect, useRef } from "react";
 import { View, Pressable, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/theme/ThemeContext";
-import { Location } from "@/stores/locationStore";
+import { useTheme } from "@/src/theme/ThemeContext";
+import { Location } from "@/src/stores/locationStore";
 
 interface SearchModeProps {
     activeSearchType: "origin" | "destination";

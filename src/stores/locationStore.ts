@@ -1,6 +1,6 @@
 // stores/locationStore.ts
 import { create } from 'zustand';
-import { LocationService } from '@/services/location.service';
+import { LocationService } from '@/src/services/location.service';
 
 export interface Location {
     id?: string;

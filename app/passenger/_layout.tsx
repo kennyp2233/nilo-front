@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
-import CustomTabs from "@/components/common/CustomTabs";
+import CustomTabs from "@/src/components/common/CustomTabs";
 import { View } from "react-native";
 import { Slot } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/theme/ThemeContext";
-import TopTabs from "@/components/passenger/TopTabs";
+import { useTheme } from "@/src/theme/ThemeContext";
+import TopTabs from "@/src/components/passenger/TopTabs";
 
 export default function MainLayout() {
     const { colors } = useTheme();

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, Stack } from 'expo-router';
 import { StyleSheet, View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { useTheme } from '@/theme/ThemeContext';
+import { useTheme } from '@/src/theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function NotFoundScreen() {

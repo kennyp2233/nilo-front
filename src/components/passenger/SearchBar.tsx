@@ -2,7 +2,7 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/theme/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 import { useRouter } from "expo-router";
 
 export default function SearchBar() {

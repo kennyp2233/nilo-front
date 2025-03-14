@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import TripMap from '@/components/maps/TripMap';
-import TripSheet from '@/components/trips/TripSheet';
-import { useLocation } from '@/hooks/useLocation';
-import { useTrip } from '@/hooks/useTrip';
-import { Location } from '@/stores/locationStore';
-import { useTheme } from '@/theme/ThemeContext';
+import TripMap from '@/src/components/maps/TripMap';
+import TripSheet from '@/src/components/trips/TripSheet';
+import { useLocation } from '@/src/hooks/useLocation';
+import { useTrip } from '@/src/hooks/useTrip';
+import { Location } from '@/src/stores/locationStore';
+import { useTheme } from '@/src/theme/ThemeContext';
 
 const TripPlanner = () => {
     const { colors } = useTheme();
@@ -31,6 +31,7 @@ const TripPlanner = () => {
         route,
         clearError
     } = useTrip();
+
 
     // Show error if any
     useEffect(() => {

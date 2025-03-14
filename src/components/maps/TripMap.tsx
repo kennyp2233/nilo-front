@@ -4,7 +4,7 @@ import { StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Region, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import CenteredPin from './CenteredPin';
-import { useTheme } from '@/theme/ThemeContext';
+import { useTheme } from '@/src/theme/ThemeContext';
 
 interface TripMapProps {
   origin?: { latitude: number; longitude: number, name?: string };

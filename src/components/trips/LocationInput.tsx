@@ -1,7 +1,7 @@
 // components/LocationInput.tsx
 import React from "react";
 import { Pressable, View, Text, StyleSheet } from "react-native";
-import { useTheme } from "@/theme/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 
 interface LocationInputProps {
     type: "origin" | "destination";

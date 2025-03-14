@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
-import { useTheme } from "@/theme/ThemeContext";
+import { useTheme } from "@/src/theme/ThemeContext";
 import type { RelativePathString } from "expo-router";
 
 type TabItem = {

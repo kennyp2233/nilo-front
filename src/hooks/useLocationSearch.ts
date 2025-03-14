@@ -1,7 +1,7 @@
 // hooks/useLocationSearch.ts
 import { useState, useCallback } from "react";
 import { debounce } from "lodash";
-import { LocationService } from "@/services/location.service";
+import { LocationService } from "@/src/services/location.service";
 
 export function useLocationSearch() {
   const [searchQuery, setSearchQuery] = useState("");

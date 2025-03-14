@@ -1,6 +1,6 @@
 // hooks/useLocation.ts
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { useLocationStore, Location } from '@/stores/locationStore';
+import { useLocationStore, Location } from '@/src/stores/locationStore';
 
 export function useLocation() {
     const {

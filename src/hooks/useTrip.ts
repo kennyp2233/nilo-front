@@ -1,7 +1,7 @@
 // hooks/useTrip.ts
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { useTripStore, Location, TripRequest, Trip } from '@/stores/tripStore';
-import { useAuth } from '@/hooks/useAuth';
+import { useTripStore, Location, TripRequest, Trip } from '@/src/stores/tripStore';
+import { useAuth } from './useAuth';
 import { useRouter } from 'expo-router';
 
 export function useTrip(tripId?: string) {

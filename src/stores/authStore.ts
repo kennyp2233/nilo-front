@@ -1,6 +1,6 @@
 // stores/authStore.ts
 import { create } from 'zustand';
-import { apiService } from '@/services/api.service';
+import { apiService } from '@/src/services/api.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
