@@ -1,89 +1,83 @@
+// services/location.service.ts
+import { apiService } from './api.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// En desarrollo, usa tu IP local en lugar de localhost
-// Para Android emulator: 10.0.2.2
-// Para dispositivo físico: tu IP local (ej: 192.168.1.X)
-const API_URL = __DEV__
-    ? 'http://192.168.68.105:3000'  // Usa la IP local de tu backend
-    : process.env.EXPO_PUBLIC_API_URL;
-
-export const LocationService = {
-    async searchLocations(query: string): Promise<any[]> {
+export class LocationService {
+    // Search for locations by query string
+    static async searchLocations(query: string, limit = 5, countryCode = 'EC'): Promise<any[]> {
         try {
             console.log('Searching locations with query:', query);
-            console.log('API URL:', API_URL);
-
-            const response = await fetch(
-                `${API_URL}/geocoding/search?query=${encodeURIComponent(query)}`
-            );
-
-            if (!response.ok) {
-                console.error('Error searching locations:', response);
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Search results:', data);
-            return data;
+            return await apiService.searchLocations(query, limit, countryCode);
         } catch (error) {
             console.error('Error searching locations:', error);
-            throw error; // Re-lanzar el error para manejarlo en el componente
+            return [];
         }
-    },
+    }
 
-    async reverseGeocode(latitude: number, longitude: number): Promise<any | null> {
+    // Reverse geocode coordinates to address
+    static async reverseGeocode(latitude: number, longitude: number): Promise<any | null> {
         try {
-            const response = await fetch(
-                `${API_URL}/geocoding/reverse?latitude=${latitude}&longitude=${longitude}`
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            return await response.json();
+            return await apiService.reverseGeocode(latitude, longitude);
         } catch (error) {
             console.error('Error reverse geocoding:', error);
-            throw error;
+            return null;
         }
-    },
+    }
 
-    async saveRecentLocation(location: any): Promise<void> {
+    // Save a location to recent locations
+    static async saveRecentLocation(location: any): Promise<void> {
         try {
-            const response = await fetch(`${API_URL}/locations/recent`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(location),
-            });
+            // First, save to local storage
+            const recentLocationsJSON = await AsyncStorage.getItem('recent_locations');
+            let recentLocations = recentLocationsJSON ? JSON.parse(recentLocationsJSON) : [];
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            // Check if location already exists
+            const locationExists = recentLocations.some((loc: any) => loc.id === location.id);
+
+            if (!locationExists) {
+                // Add to beginning of array
+                recentLocations.unshift(location);
+
+                // Keep only the most recent 10 locations
+                if (recentLocations.length > 10) {
+                    recentLocations = recentLocations.slice(0, 10);
+                }
+
+                // Save back to storage
+                await AsyncStorage.setItem('recent_locations', JSON.stringify(recentLocations));
+            }
+
+            // If user is logged in, also save to backend
+            const token = await AsyncStorage.getItem('auth_token');
+            if (token) {
+                // Here we could implement a backend call to save to user's favorite locations
+                // For now, just log the intent
+                console.log('Would save to backend if endpoint was available:', location);
             }
         } catch (error) {
             console.error('Error saving recent location:', error);
-            throw error;
         }
-    },
+    }
 
-    async getRoute(start: [number, number], end: [number, number]): Promise<any> {
+    // Get recent locations
+    static async getRecentLocations(): Promise<any[]> {
         try {
-            console.log('Fetching route from:', start, 'to:', end);
+            const recentLocationsJSON = await AsyncStorage.getItem('recent_locations');
+            return recentLocationsJSON ? JSON.parse(recentLocationsJSON) : [];
+        } catch (error) {
+            console.error('Error getting recent locations:', error);
+            return [];
+        }
+    }
 
-            const response = await fetch(
-                `${API_URL}/ors/route?start=${start.join(',')}&end=${end.join(',')}`
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Route data:', data);
-            return data;
+    // Get route between two points
+    static async getRoute(startCoords: [number, number], endCoords: [number, number]): Promise<any> {
+        try {
+            console.log('Fetching route from:', startCoords, 'to:', endCoords);
+            return await apiService.getRoute(startCoords, endCoords);
         } catch (error) {
             console.error('Error fetching route:', error);
             throw error;
         }
     }
-};
+}
