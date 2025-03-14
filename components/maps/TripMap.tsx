@@ -140,25 +140,16 @@ const TripMap: React.FC<TripMapProps> = ({
     }
   };
 
-  // Extract route coordinates from the route object if available
   const getRouteCoordinates = () => {
-    // If we're using fallback route, create a straight line between points
-    if (useFallbackRoute && origin && destination) {
-      // Create a simple direct line between origin and destination
-      return [
-        { latitude: origin.latitude, longitude: origin.longitude },
-        { latitude: destination.latitude, longitude: destination.longitude }
-      ];
-    }
-
-    if (!route || !route.routes || !route.routes[0] || !route.routes[0].geometry) {
+    if (!route || !route.features || !route.features[0] || !route.features[0].geometry) {
       return [];
     }
 
-    // Parse the route geometry (assuming it's in the format provided by the OpenRouteService)
+    // Parse the route geometry (OpenRouteService devuelve GeoJSON)
     try {
-      const coordinates = route.routes[0].geometry.coordinates.map((coord: [number, number]) => ({
-        latitude: coord[1], // ORS returns [longitude, latitude]
+      // Accede a las coordenadas dentro del objeto GeoJSON
+      const coordinates = route.features[0].geometry.coordinates.map((coord: any[]) => ({
+        latitude: coord[1], // GeoJSON usa [longitude, latitude]
         longitude: coord[0]
       }));
 
