@@ -29,34 +29,65 @@ export function useLocation() {
     const debouncedSearch = useCallback(
         debounce(async (query: string) => {
             if (query.length < 3) return;
+            console.log("Performing debounced search:", query);
             await searchLocations(query);
-        }, 500),
+        }, 300),
         []
     );
 
     // Handle search input change
-    const handleSearchChange = (query: string) => {
+    const handleSearchChange = useCallback((query: string) => {
+        console.log("Search query changed:", query);
         setSearchQuery(query);
+
         if (query.length < 3) {
             clearSearchResults();
             return;
         }
+
         debouncedSearch(query);
-    };
+    }, [setSearchQuery, clearSearchResults, debouncedSearch]);
 
     // Handle selecting a location from search results or map
     const handleLocationSelect = async (location: Location) => {
+        console.log("Location selected:", location);
         await saveRecentLocation(location);
         return location;
     };
 
     // Get location from coordinates (e.g., when selecting on map)
     const getLocationFromCoordinates = async (coords: { latitude: number; longitude: number }) => {
-        const location = await reverseGeocode(coords.latitude, coords.longitude);
-        if (location) {
-            await saveRecentLocation(location);
+        console.log("Getting location from coordinates:", coords);
+        try {
+            const location = await reverseGeocode(coords.latitude, coords.longitude);
+
+            if (location) {
+                console.log("Location found:", location);
+                await saveRecentLocation(location);
+                return location;
+            } else {
+                // Si no se obtiene una ubicación del servidor, crear una ubicación fallback
+                console.log("No location found from API, creating fallback location");
+                const fallbackLocation: Location = {
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    name: "Ubicación marcada",
+                    displayName: `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+                };
+                await saveRecentLocation(fallbackLocation);
+                return fallbackLocation;
+            }
+        } catch (error) {
+            console.error('Error in getLocationFromCoordinates:', error);
+            // Crear ubicación fallback en caso de error
+            const fallbackLocation: Location = {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                name: "Ubicación marcada",
+                displayName: `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+            };
+            return fallbackLocation;
         }
-        return location;
     };
 
     // Get route between two points
@@ -64,6 +95,7 @@ export function useLocation() {
         if (!origin || !destination) return null;
 
         try {
+            console.log("Calculating route from", origin, "to", destination);
             return await getRoute(
                 [origin.latitude, origin.longitude],
                 [destination.latitude, destination.longitude]

@@ -1,13 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Region, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import CenteredPin from './CenteredPin';
 import { useTheme } from '@/theme/ThemeContext';
 
 interface TripMapProps {
-  origin?: { latitude: number; longitude: number };
-  destination?: { latitude: number; longitude: number };
+  origin?: { latitude: number; longitude: number, name?: string };
+  destination?: { latitude: number; longitude: number, name?: string };
   onLocationSelected?: (coords: { latitude: number; longitude: number }) => void;
   selectingType?: 'origin' | 'destination' | null;
   route?: any;
@@ -24,19 +24,25 @@ const TripMap: React.FC<TripMapProps> = ({
   const mapRef = useRef<MapView>(null);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [region, setRegion] = useState<Region | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const initialOriginSet = useRef(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Get current location
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Location permission not granted');
-        return;
-      }
-
       try {
-        const location = await Location.getCurrentPositionAsync({});
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.error('Location permission not granted');
+          return;
+        }
+
+        console.log("Getting current location...");
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+        console.log("Current location received:", location.coords);
         setCurrentLocation(location);
 
         const initialRegion = {
@@ -47,45 +53,70 @@ const TripMap: React.FC<TripMapProps> = ({
         };
 
         setRegion(initialRegion);
-        mapRef.current?.animateToRegion(initialRegion);
 
-        // If origin is not set yet, call the callback
-        if (!initialOriginSet.current && onLocationSelected) {
-          onLocationSelected({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
-          initialOriginSet.current = true;
+        // Only animate to region if map is ready
+        if (mapRef.current && mapReady) {
+          console.log("Animating to current location");
+          mapRef.current.animateToRegion(initialRegion, 500);
         }
       } catch (error) {
         console.error('Error getting current location:', error);
       }
     })();
-  }, []);
+  }, [mapReady]);
+
+  // Handle initial origin setting
+  useEffect(() => {
+    if (
+      currentLocation &&
+      !initialOriginSet.current &&
+      onLocationSelected &&
+      !origin &&
+      !selectingType
+    ) {
+      console.log("Setting initial origin:", currentLocation.coords);
+      onLocationSelected({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+      initialOriginSet.current = true;
+    }
+  }, [currentLocation, origin, selectingType, onLocationSelected]);
 
   // Fit map to show both origin and destination
   useEffect(() => {
-    if (origin && destination && mapRef.current) {
+    if (origin && destination && mapRef.current && mapReady) {
+      console.log("Fitting map to show origin and destination");
       mapRef.current.fitToCoordinates(
         [origin, destination],
         {
-          edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+          edgePadding: {
+            top: Platform.OS === 'ios' ? 100 : 50,
+            right: Platform.OS === 'ios' ? 100 : 50,
+            bottom: Platform.OS === 'ios' ? 100 : 50,
+            left: Platform.OS === 'ios' ? 100 : 50
+          },
           animated: true
         }
       );
     }
-  }, [origin, destination]);
+  }, [origin, destination, mapReady]);
 
   const handleRegionChange = (newRegion: Region) => {
     setRegion(newRegion);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+
+    // Clear existing debounce timer if it exists
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
   };
 
   const handleRegionChangeComplete = (newRegion: Region) => {
     if (selectingType && onLocationSelected) {
-      timeoutRef.current = setTimeout(() => {
+      // Create new debounce timer
+      debounceTimerRef.current = setTimeout(() => {
+        console.log("Selecting location at center of map:", newRegion);
         onLocationSelected({
           latitude: newRegion.latitude,
           longitude: newRegion.longitude,
@@ -114,6 +145,11 @@ const TripMap: React.FC<TripMapProps> = ({
     }
   };
 
+  const handleMapReady = () => {
+    console.log("Map is ready");
+    setMapReady(true);
+  };
+
   const initialRegion = {
     latitude: currentLocation?.coords.latitude ?? -0.1806532,
     longitude: currentLocation?.coords.longitude ?? -78.4678382,
@@ -134,12 +170,23 @@ const TripMap: React.FC<TripMapProps> = ({
         onRegionChange={handleRegionChange}
         onRegionChangeComplete={handleRegionChangeComplete}
         provider={PROVIDER_GOOGLE}
+        onMapReady={handleMapReady}
       >
         {origin && !selectingType && (
-          <Marker coordinate={origin} pinColor="green" />
+          <Marker
+            coordinate={origin}
+            pinColor="green"
+            title="Origen"
+            description={origin.name || "Punto de partida"}
+          />
         )}
         {destination && !selectingType && (
-          <Marker coordinate={destination} pinColor="red" />
+          <Marker
+            coordinate={destination}
+            pinColor="red"
+            title="Destino"
+            description={destination.name || "Punto de llegada"}
+          />
         )}
 
         {/* Display route if available */}

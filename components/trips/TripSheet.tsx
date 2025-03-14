@@ -1,5 +1,5 @@
 // TripSheet.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/theme/ThemeContext";
@@ -34,23 +34,47 @@ const TripSheet: React.FC<TripSheetProps> = ({
 }) => {
     const { colors } = useTheme();
     const [activeSearchType, setActiveSearchType] = useState<"origin" | "destination" | null>(null);
-    const { recentLocations, handleSearchChange, searchResults, searchQuery, isSearching } = useLocation();
+    const {
+        recentLocations,
+        handleSearchChange,
+        searchResults,
+        searchQuery,
+        isSearching,
+        clearSearchResults
+    } = useLocation();
+
+    // Reset search when search type changes or is closed
+    useEffect(() => {
+        if (!activeSearchType) {
+            clearSearchResults();
+        }
+    }, [activeSearchType]);
 
     const handleLocationInputPress = (type: "origin" | "destination") => {
         setActiveSearchType(type);
         onExpandedChange(true);
     };
 
-    const handleLocationSelection = (location: Location | null) => {
+    const handleLocationSelection = (location: Location) => {
         if (!activeSearchType) return;
+
+        console.log("Selected location:", location);
         onLocationSelect(activeSearchType, location);
         setActiveSearchType(null);
     };
 
     const handleSelectManually = () => {
         if (!activeSearchType) return;
+
+        console.log("Selecting location manually for:", activeSearchType);
         onLocationSelect(activeSearchType, null);
         setActiveSearchType(null);
+        onExpandedChange(false);
+    };
+
+    const handleBackFromSearch = () => {
+        setActiveSearchType(null);
+        clearSearchResults();
     };
 
     const renderTripSummary = () => {
@@ -173,7 +197,7 @@ const TripSheet: React.FC<TripSheetProps> = ({
                         {activeSearchType ? (
                             <SearchMode
                                 activeSearchType={activeSearchType}
-                                onBack={() => setActiveSearchType(null)}
+                                onBack={handleBackFromSearch}
                                 onSelectLocation={handleLocationSelection}
                                 onSelectManually={handleSelectManually}
                                 searchQuery={searchQuery}

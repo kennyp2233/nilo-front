@@ -18,7 +18,21 @@ export class LocationService {
     static async reverseGeocode(latitude: number, longitude: number): Promise<any | null> {
         try {
             console.log('Reverse geocoding coordinates:', latitude, longitude);
-            return await apiService.reverseGeocode(latitude, longitude).then(console.log);
+            const response = await apiService.reverseGeocode(latitude, longitude);
+            console.log('Reverse geocode response:', response);
+
+            // Si la respuesta existe, devuelve un objeto Location formateado correctamente
+            if (response) {
+                return {
+                    id: response.id?.toString(),
+                    latitude: response.latitude,
+                    longitude: response.longitude,
+                    name: response.name || 'Ubicación marcada',
+                    displayName: response.displayName,
+                    address: response.address
+                };
+            }
+            return null;
         } catch (error) {
             console.error('Error reverse geocoding:', error);
             return null;
@@ -33,7 +47,10 @@ export class LocationService {
             let recentLocations = recentLocationsJSON ? JSON.parse(recentLocationsJSON) : [];
 
             // Check if location already exists
-            const locationExists = recentLocations.some((loc: any) => loc.id === location.id);
+            const locationExists = recentLocations.some((loc: any) =>
+                loc.id === location.id ||
+                (loc.latitude === location.latitude && loc.longitude === location.longitude)
+            );
 
             if (!locationExists) {
                 // Add to beginning of array
@@ -46,6 +63,7 @@ export class LocationService {
 
                 // Save back to storage
                 await AsyncStorage.setItem('recent_locations', JSON.stringify(recentLocations));
+                console.log('Location saved to recent locations:', location);
             }
 
             // If user is logged in, also save to backend
@@ -64,7 +82,9 @@ export class LocationService {
     static async getRecentLocations(): Promise<any[]> {
         try {
             const recentLocationsJSON = await AsyncStorage.getItem('recent_locations');
-            return recentLocationsJSON ? JSON.parse(recentLocationsJSON) : [];
+            const locations = recentLocationsJSON ? JSON.parse(recentLocationsJSON) : [];
+            console.log('Fetched recent locations:', locations.length);
+            return locations;
         } catch (error) {
             console.error('Error getting recent locations:', error);
             return [];
