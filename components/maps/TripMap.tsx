@@ -1,6 +1,5 @@
-// src/components/maps/TripMap.tsx
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import CenteredPin from './CenteredPin';
@@ -21,6 +20,8 @@ const TripMap: React.FC<TripMapProps> = ({
   const mapRef = useRef<MapView>(null);
   const [currentLocation, setCurrentLocation] = React.useState<Location.LocationObject | null>(null);
   const [region, setRegion] = React.useState<Region | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initialOriginSet = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -31,29 +32,43 @@ const TripMap: React.FC<TripMapProps> = ({
 
       const location = await Location.getCurrentPositionAsync({});
       setCurrentLocation(location);
-      
+
       const initialRegion = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
       };
-      
+
       setRegion(initialRegion);
       mapRef.current?.animateToRegion(initialRegion);
+
+      // Si aún no se ha seteado el origin, se llama al callback
+      if (!initialOriginSet.current && onLocationSelected) {
+        onLocationSelected({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        initialOriginSet.current = true;
+      }
     })();
   }, []);
 
   const handleRegionChange = (newRegion: Region) => {
     setRegion(newRegion);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
   };
 
-  const handleRegionChangeComplete = async (newRegion: Region) => {
+  const handleRegionChangeComplete = (newRegion: Region) => {
     if (selectingType && onLocationSelected) {
-      onLocationSelected({
-        latitude: newRegion.latitude,
-        longitude: newRegion.longitude,
-      });
+      timeoutRef.current = setTimeout(() => {
+        onLocationSelected({
+          latitude: newRegion.latitude,
+          longitude: newRegion.longitude,
+        });
+      }, 500);
     }
   };
 

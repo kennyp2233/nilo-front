@@ -3,8 +3,7 @@
 // Para Android emulator: 10.0.2.2
 // Para dispositivo físico: tu IP local (ej: 192.168.1.X)
 const API_URL = __DEV__
-    ? 'http://10.0.2.2:3000'  // Para Android emulator
-    // ? 'http://192.168.1.X:3000'  // Para dispositivo físico (reemplaza X con tu IP)
+    ? 'http://192.168.68.105:3000'  // Usa la IP local de tu backend
     : process.env.EXPO_PUBLIC_API_URL;
 
 export const LocationService = {
@@ -63,6 +62,27 @@ export const LocationService = {
             }
         } catch (error) {
             console.error('Error saving recent location:', error);
+            throw error;
+        }
+    },
+
+    async getRoute(start: [number, number], end: [number, number]): Promise<any> {
+        try {
+            console.log('Fetching route from:', start, 'to:', end);
+
+            const response = await fetch(
+                `${API_URL}/ors/route?start=${start.join(',')}&end=${end.join(',')}`
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Route data:', data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching route:', error);
             throw error;
         }
     }
