@@ -1,5 +1,5 @@
 // hooks/useTrip.ts
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useTripStore, Location, TripRequest, Trip } from '@/stores/tripStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
@@ -23,6 +23,7 @@ export function useTrip(tripId?: string) {
         setActiveTrip
     } = useTripStore();
     const router = useRouter();
+    const [routeError, setRouteError] = useState(false);
 
     // Local state for form handling
     const [origin, setOrigin] = useState<Location | null>(null);
@@ -31,6 +32,8 @@ export function useTrip(tripId?: string) {
     const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
     const [availableSeats, setAvailableSeats] = useState<number>(1);
     const [pricePerSeat, setPricePerSeat] = useState<number | null>(null);
+    const routeRetryCount = useRef(0);
+    const MAX_ROUTE_RETRIES = 2;
 
     // Load specific trip if ID provided
     useEffect(() => {
@@ -48,8 +51,38 @@ export function useTrip(tripId?: string) {
 
     // Update route when origin and destination change
     useEffect(() => {
+        const calculateRouteWithRetry = async () => {
+            if (origin && destination) {
+                try {
+                    setRouteError(false);
+                    console.log(`Attempting to fetch route (attempt ${routeRetryCount.current + 1}/${MAX_ROUTE_RETRIES + 1})`);
+                    await fetchRoute(origin, destination);
+                    // Reset retry counter on success
+                    routeRetryCount.current = 0;
+                } catch (error) {
+                    console.error('Error fetching route:', error);
+
+                    // Retry logic with exponential backoff
+                    if (routeRetryCount.current < MAX_ROUTE_RETRIES) {
+                        routeRetryCount.current++;
+                        const backoffTime = 1000 * Math.pow(2, routeRetryCount.current - 1);
+                        console.log(`Retrying in ${backoffTime}ms...`);
+
+                        setTimeout(() => {
+                            calculateRouteWithRetry();
+                        }, backoffTime);
+                    } else {
+                        console.log("Max retries reached, setting route error");
+                        setRouteError(true);
+                        // Reset retry counter for next attempt
+                        routeRetryCount.current = 0;
+                    }
+                }
+            }
+        };
+
         if (origin && destination) {
-            fetchRoute(origin, destination);
+            calculateRouteWithRetry();
         }
     }, [origin, destination]);
 
@@ -102,6 +135,7 @@ export function useTrip(tripId?: string) {
         setAvailableSeats(1);
         setPricePerSeat(null);
         setActiveTrip(null);
+        setRouteError(false);
     }, []);
 
     return {
@@ -111,6 +145,7 @@ export function useTrip(tripId?: string) {
         isLoading,
         error,
         route,
+        routeError,
         origin,
         destination,
         tripType,

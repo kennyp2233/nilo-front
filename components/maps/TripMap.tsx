@@ -1,3 +1,4 @@
+// components/maps/TripMap.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Region, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -27,6 +28,7 @@ const TripMap: React.FC<TripMapProps> = ({
   const [mapReady, setMapReady] = useState(false);
   const initialOriginSet = useRef(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [useFallbackRoute, setUseFallbackRoute] = useState(false);
 
   // Get current location
   useEffect(() => {
@@ -83,6 +85,19 @@ const TripMap: React.FC<TripMapProps> = ({
     }
   }, [currentLocation, origin, selectingType, onLocationSelected]);
 
+  // Check if route is failing and activate fallback
+  useEffect(() => {
+    if (origin && destination && !route && !useFallbackRoute) {
+      // If we have origin and destination but no route, activate fallback after a delay
+      const timer = setTimeout(() => {
+        console.log("Activating fallback route");
+        setUseFallbackRoute(true);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [origin, destination, route, useFallbackRoute]);
+
   // Fit map to show both origin and destination
   useEffect(() => {
     if (origin && destination && mapRef.current && mapReady) {
@@ -93,7 +108,7 @@ const TripMap: React.FC<TripMapProps> = ({
           edgePadding: {
             top: Platform.OS === 'ios' ? 100 : 50,
             right: Platform.OS === 'ios' ? 100 : 50,
-            bottom: Platform.OS === 'ios' ? 100 : 50,
+            bottom: Platform.OS === 'ios' ? 300 : 250, // Increased to account for the bottom sheet
             left: Platform.OS === 'ios' ? 100 : 50
           },
           animated: true
@@ -127,6 +142,15 @@ const TripMap: React.FC<TripMapProps> = ({
 
   // Extract route coordinates from the route object if available
   const getRouteCoordinates = () => {
+    // If we're using fallback route, create a straight line between points
+    if (useFallbackRoute && origin && destination) {
+      // Create a simple direct line between origin and destination
+      return [
+        { latitude: origin.latitude, longitude: origin.longitude },
+        { latitude: destination.latitude, longitude: destination.longitude }
+      ];
+    }
+
     if (!route || !route.routes || !route.routes[0] || !route.routes[0].geometry) {
       return [];
     }
@@ -189,12 +213,13 @@ const TripMap: React.FC<TripMapProps> = ({
           />
         )}
 
-        {/* Display route if available */}
+        {/* Display route if available or fallback */}
         {routeCoordinates.length > 0 && (
           <Polyline
             coordinates={routeCoordinates}
             strokeWidth={4}
             strokeColor={colors.primary}
+            lineDashPattern={useFallbackRoute ? [5, 5] : undefined} // Dashed line for fallback
           />
         )}
       </MapView>

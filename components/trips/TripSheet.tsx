@@ -1,6 +1,6 @@
 // TripSheet.tsx
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Pressable, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/theme/ThemeContext";
 import BottomSheet from "../common/BottomSheet";
@@ -20,8 +20,9 @@ interface TripSheetProps {
     isLoading?: boolean;
 }
 
+// Increase the expanded height to allow more space for scrolling
 const COLLAPSED_HEIGHT = 120;
-const EXPANDED_HEIGHT = 450;
+const EXPANDED_HEIGHT = 520; // Further increased for better visibility
 
 const TripSheet: React.FC<TripSheetProps> = ({
     expanded,
@@ -75,6 +76,28 @@ const TripSheet: React.FC<TripSheetProps> = ({
     const handleBackFromSearch = () => {
         setActiveSearchType(null);
         clearSearchResults();
+    };
+
+    // Format location display name for readability
+    const getLocationDisplayName = (location: Location | null | undefined) => {
+        if (!location) return "";
+
+        if (location.displayName) return location.displayName;
+
+        if (location.address) {
+            const addressParts = [];
+            if (location.address.street) addressParts.push(location.address.street);
+            if (location.address.city) addressParts.push(location.address.city);
+            if (addressParts.length > 0) return addressParts.join(", ");
+        }
+
+        return `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+    };
+
+    // Get location name, using a meaningful fallback if needed
+    const getLocationName = (location: Location | null | undefined, defaultName: string) => {
+        if (!location) return defaultName;
+        return location.name || defaultName;
     };
 
     const renderTripSummary = () => {
@@ -136,13 +159,15 @@ const TripSheet: React.FC<TripSheetProps> = ({
             <View style={styles.locationInputs}>
                 <LocationInput
                     type="origin"
-                    label={origin?.name || "Tu ubicación"}
+                    label={getLocationName(origin, "Tu ubicación")}
+                    displayName={getLocationDisplayName(origin)}
                     onPress={() => handleLocationInputPress("origin")}
                     dotColor={colors.success}
                 />
                 <LocationInput
                     type="destination"
-                    label={destination?.name || "¿A dónde vas?"}
+                    label={getLocationName(destination, "¿A dónde vas?")}
+                    displayName={getLocationDisplayName(destination)}
                     onPress={() => handleLocationInputPress("destination")}
                     dotColor={colors.error}
                 />
@@ -152,12 +177,23 @@ const TripSheet: React.FC<TripSheetProps> = ({
             {renderRequestButton()}
 
             <View style={styles.recentSearches}>
-                <RecentTrips trips={recentLocations.map((loc, index) => ({
-                    id: loc.id || index.toString(),
-                    name: loc.name || "Ubicación guardada",
-                    address: loc.displayName || "Dirección desconocida",
-                    frequency: ""
-                }))} />
+                <Text style={[styles.recentTitle, { color: colors.text.primary }]}>
+                    Lugares recientes
+                </Text>
+                {recentLocations.length > 0 ? (
+                    <RecentTrips trips={recentLocations.map((loc, index) => ({
+                        id: loc.id || index.toString(),
+                        name: loc.name || "Ubicación guardada",
+                        address: loc.displayName || (loc.address ?
+                            `${loc.address.street || ''}, ${loc.address.city || ''}` :
+                            `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`),
+                        frequency: ""
+                    }))} />
+                ) : (
+                    <Text style={[styles.noRecents, { color: colors.text.secondary }]}>
+                        No hay lugares recientes
+                    </Text>
+                )}
             </View>
         </>
     );
@@ -169,48 +205,61 @@ const TripSheet: React.FC<TripSheetProps> = ({
             expandedHeight={EXPANDED_HEIGHT}
             collapsedHeight={COLLAPSED_HEIGHT}
         >
-            <View style={[styles.sheetContent, { backgroundColor: colors.background.primary }]}>
-                <View style={styles.dragIndicator} />
-                {!expanded ? (
-                    <View style={styles.collapsedContent}>
-                        <Pressable
-                            style={[styles.searchBar, { backgroundColor: colors.background.secondary }]}
-                            onPress={() => {
-                                onExpandedChange(true);
-                                setActiveSearchType("destination");
-                            }}
-                        >
-                            <Ionicons name="search" size={20} color={colors.text.secondary} />
-                            {destination ? (
-                                <Text style={[styles.searchText, { color: colors.text.secondary }]}>
-                                    {destination.name}
-                                </Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+            >
+                <View style={[styles.sheetContent, { backgroundColor: colors.background.primary }]}>
+                    <View style={styles.dragIndicator} />
+                    {!expanded ? (
+                        <View style={styles.collapsedContent}>
+                            <Pressable
+                                style={[styles.searchBar, { backgroundColor: colors.background.secondary }]}
+                                onPress={() => {
+                                    onExpandedChange(true);
+                                    setActiveSearchType("destination");
+                                }}
+                            >
+                                <Ionicons name="search" size={20} color={colors.text.secondary} />
+                                {destination ? (
+                                    <Text style={[styles.searchText, { color: colors.text.secondary }]}>
+                                        {destination.name || "Destino seleccionado"}
+                                    </Text>
+                                ) : (
+                                    <Text style={[styles.searchText, { color: colors.text.secondary }]}>
+                                        ¿A dónde vas?
+                                    </Text>
+                                )}
+                            </Pressable>
+                        </View>
+                    ) : (
+                        <View style={styles.expandedContent}>
+                            {activeSearchType ? (
+                                <SearchMode
+                                    activeSearchType={activeSearchType}
+                                    onBack={handleBackFromSearch}
+                                    onSelectLocation={handleLocationSelection}
+                                    onSelectManually={handleSelectManually}
+                                    searchQuery={searchQuery}
+                                    searchResults={searchResults}
+                                    isSearching={isSearching}
+                                    onSearchChange={handleSearchChange}
+                                />
                             ) : (
-                                <Text style={[styles.searchText, { color: colors.text.secondary }]}>
-                                    ¿A dónde vas?
-                                </Text>
+                                <ScrollView
+                                    style={styles.defaultModeScrollView}
+                                    contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
+                                    nestedScrollEnabled={true}
+                                    showsVerticalScrollIndicator={true}
+                                >
+                                    {renderDefaultMode()}
+                                </ScrollView>
                             )}
-                        </Pressable>
-                    </View>
-                ) : (
-                    <ScrollView style={styles.expandedContent}>
-                        {activeSearchType ? (
-                            <SearchMode
-                                activeSearchType={activeSearchType}
-                                onBack={handleBackFromSearch}
-                                onSelectLocation={handleLocationSelection}
-                                onSelectManually={handleSelectManually}
-                                searchQuery={searchQuery}
-                                searchResults={searchResults}
-                                isSearching={isSearching}
-                                onSearchChange={handleSearchChange}
-                            />
-                        ) : (
-                            renderDefaultMode()
-                        )}
-                    </ScrollView>
-                )}
-            </View>
+                        </View>
+                    )}
+                </View>
+            </KeyboardAvoidingView>
         </BottomSheet>
     );
 };
@@ -243,6 +292,12 @@ const styles = StyleSheet.create({
     },
     expandedContent: {
         flex: 1,
+    },
+    defaultModeScrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 24,
     },
     locationInputs: {
         marginBottom: 16,
@@ -293,6 +348,16 @@ const styles = StyleSheet.create({
     },
     recentSearches: {
         flex: 1,
+    },
+    recentTitle: {
+        fontSize: 20,
+        fontWeight: "600",
+        marginBottom: 12,
+    },
+    noRecents: {
+        textAlign: "center",
+        padding: 16,
+        fontSize: 14,
     },
 });
 
