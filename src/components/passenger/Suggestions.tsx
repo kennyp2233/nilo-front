@@ -88,6 +88,8 @@ const styles = StyleSheet.create({
     suggestionItem: {
         flex: 1,
         minWidth: "45%",
+        marginVertical: 0,
+
     },
     suggestionContent: {
         gap: 8

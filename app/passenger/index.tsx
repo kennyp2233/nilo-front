@@ -1,17 +1,17 @@
 // app/passenger/index.tsx
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useRouter } from "expo-router";
 import SearchBar from "@/src/components/passenger/SearchBar";
 import RecentTrips from "@/src/components/passenger/RecentTrips";
 import Suggestions from "@/src/components/passenger/Suggestions";
 import Promotions from "@/src/components/passenger/Promotions";
-import ActiveTripCard from "@/src/components/passenger/ActiveTripCard";
+import ActiveTripsSection from "@/src/components/passenger/ActiveTripsSection";
 import { useTrip } from "@/src/hooks/useTrip";
-import { FloatingActionButton, EmptyState } from "@/src/components/ui";
+import { FloatingActionButton } from "@/src/components/ui";
 
-// Sample data for components (in production would come from API)
+// Sample data for components (en producción vendría de la API)
 const recentTrips = [
     {
         id: "1",
@@ -75,31 +75,34 @@ export default function HomeScreen() {
     const { fetchTrips, trips, getActiveTrips } = useTrip();
     const [activeTrips, setActiveTrips] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Load trips when component mounts
+    // Cargar viajes cuando el componente se monta
     useEffect(() => {
         loadTrips();
     }, []);
 
-    // Update active trips when the list of trips changes
+    // Actualizar viajes activos cuando cambia la lista de viajes
     useEffect(() => {
         const active = getActiveTrips();
         setActiveTrips(active);
         setIsLoading(false);
     }, [trips, getActiveTrips]);
 
-    // Load trips
+    // Cargar viajes
     const loadTrips = async () => {
         setIsLoading(true);
         await fetchTrips();
     };
 
-    // View all trips
-    const handleViewAllTrips = () => {
-        router.push('/trip/list');
+    // Manejar refresco de la pantalla
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        await fetchTrips();
+        setRefreshing(false);
     };
 
-    // Request new trip
+    // Solicitar nuevo viaje
     const handleRequestTrip = () => {
         router.push('/trip/planner');
     };
@@ -109,38 +112,27 @@ export default function HomeScreen() {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        colors={[colors.primary]}
+                        tintColor={colors.primary}
+                    />
+                }
             >
                 <SearchBar />
 
-                {/* Active trips section */}
-                {activeTrips.length > 0 && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <View style={styles.sectionTitle}>
-                                <EmptyState
-                                    title="Viajes activos"
-                                    description={`Tienes ${activeTrips.length} viaje${activeTrips.length > 1 ? 's' : ''} activo${activeTrips.length > 1 ? 's' : ''}`}
-                                    icon="car"
-                                    actionLabel="Ver todos"
-                                    onAction={handleViewAllTrips}
-                                    style={styles.activeTripsEmpty}
-                                />
-                            </View>
-                        </View>
+                {/* Sección de viajes activos */}
+                <ActiveTripsSection activeTrips={activeTrips} />
 
-                        {activeTrips.map(trip => (
-                            <ActiveTripCard key={trip.id} trip={trip} />
-                        ))}
-                    </View>
-                )}
-
-                {/* Main content */}
+                {/* Contenido principal */}
                 <RecentTrips trips={recentTrips} />
                 <Suggestions suggestions={suggestions} />
                 <Promotions promotions={promotions} />
             </ScrollView>
 
-            {/* Floating action button for requesting a trip */}
+            {/* Botón flotante para solicitar un viaje */}
             <FloatingActionButton
                 icon="car"
                 label="Solicitar NILO"
@@ -158,23 +150,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 16,
-        paddingBottom: 80, // Extra space for FAB
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        flex: 1,
-    },
-    activeTripsEmpty: {
-        minHeight: 0,
-        padding: 0,
-        alignItems: 'flex-start',
-    },
+        paddingBottom: 80, // Espacio extra para el FAB
+        gap: 16,
+    }
 });

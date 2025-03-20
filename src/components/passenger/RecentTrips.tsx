@@ -32,9 +32,9 @@ export default function RecentTrips({ trips }: Props) {
             {trips.map(trip => (
                 <Card
                     key={trip.id}
-                    variant="flat"
+                    variant="default"
                     style={styles.tripItem}
-                    padding="medium"
+                    padding="none"
                 >
                     <ListItem
                         title={trip.name}
@@ -51,7 +51,7 @@ export default function RecentTrips({ trips }: Props) {
 
 const styles = StyleSheet.create({
     container: {
-        gap: 12
+        gap: 8
     },
     title: {
         marginBottom: 8

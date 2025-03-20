@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
         marginBottom: 8
     },
     scrollView: {
-        marginHorizontal: -16
+        marginHorizontal: -8
     },
     promoCard: {
         width: 300,
