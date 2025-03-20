@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/theme/ThemeContext';
 import Text from './Text';
 
-interface InputProps extends TextInputProps {
+export interface InputProps extends TextInputProps {
     label?: string;
     icon?: keyof typeof Ionicons.glyphMap;
     iconPosition?: 'left' | 'right';
