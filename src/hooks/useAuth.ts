@@ -1,23 +1,38 @@
-// hooks/useAuth.ts
+// src/hooks/useAuth.ts (Refactorizado)
 import { useEffect } from 'react';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useRouter } from 'expo-router';
 
+/**
+ * Hook para gestionar autenticación
+ * @param requireAuth Si es true, redirige a login si no hay usuario autenticado
+ */
 export function useAuth(requireAuth = false) {
-    const { user, token, isLoading, error, initialize, login, register, logout, updateProfile, clearError } = useAuthStore();
+    const {
+        user,
+        token,
+        isLoading,
+        error,
+        initialize,
+        login,
+        register,
+        logout,
+        updateProfile,
+        clearError
+    } = useAuthStore();
     const router = useRouter();
 
     const isAuthenticated = !!token && !!user;
 
-    // Initialize auth state on component mount
+    // Inicializar estado de autenticación al montar el componente
     useEffect(() => {
         initialize();
     }, []);
 
-    // Redirect to login if auth is required but user is not authenticated
+    // Redirigir a login si se requiere autenticación pero el usuario no está autenticado
     useEffect(() => {
         if (requireAuth && !isLoading && !isAuthenticated) {
-            //router.replace('/auth/login');
+            router.replace('/auth/login');
         }
     }, [requireAuth, isLoading, isAuthenticated, router]);
 

@@ -1,7 +1,7 @@
-// stores/authStore.ts
+// src/stores/authStore.ts (Actualizado)
 import { create } from 'zustand';
-import { apiService } from '@/src/services/api.service';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authService } from '@/src/services';
+import { RegisterUserData, LoginCredentials } from '@/src/services';
 
 interface User {
     id: string;
@@ -10,7 +10,7 @@ interface User {
     lastName: string;
     profilePicture?: string;
     role: 'PASSENGER' | 'DRIVER' | 'ADMIN';
-    // Additional properties based on role
+    // Propiedades adicionales basadas en el rol
     passenger?: any;
     driver?: any;
 }
@@ -21,10 +21,10 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
 
-    // Actions
+    // Acciones
     initialize: () => Promise<void>;
     login: (email: string, password: string) => Promise<boolean>;
-    register: (userData: any) => Promise<boolean>;
+    register: (userData: RegisterUserData) => Promise<boolean>;
     logout: () => Promise<void>;
     updateProfile: (profileData: any) => Promise<boolean>;
     clearError: () => void;
@@ -36,31 +36,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: false,
     error: null,
 
-    // Initialize auth state from storage
+    // Inicializar estado de autenticación desde almacenamiento
     initialize: async () => {
         set({ isLoading: true });
         try {
-            const token = await AsyncStorage.getItem('auth_token');
+            const authData = await authService.initialize();
 
-            if (token) {
-                // Set token in API service
-                await apiService.setToken(token);
-
-                // Get user profile
-                const user = await apiService.getProfile();
-                set({ user, token, isLoading: false });
+            if (authData) {
+                set({
+                    user: authData.user,
+                    token: authData.token,
+                    isLoading: false
+                });
             } else {
                 set({ isLoading: false });
             }
         } catch (error: any) {
-            console.error('Failed to initialize auth:', error);
+            console.error('Error inicializando auth:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to initialize'
+                error: error?.response?.data?.message || error.message || 'Error al inicializar'
             });
-
-            // Clear any potentially invalid token
-            await AsyncStorage.removeItem('auth_token');
         }
     },
 
@@ -68,7 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await apiService.login({ email, password });
+            const response = await authService.login({ email, password });
             set({
                 user: response.user,
                 token: response.token,
@@ -76,20 +72,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             });
             return true;
         } catch (error: any) {
-            console.error('Login failed:', error);
+            console.error('Error de login:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Login failed'
+                error: error?.response?.data?.message || error.message || 'Error al iniciar sesión'
             });
             return false;
         }
     },
 
-    // Register
-    register: async (userData: any) => {
+    // Registro
+    register: async (userData: RegisterUserData) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await apiService.register(userData);
+            const response = await authService.register(userData);
             set({
                 user: response.user,
                 token: response.token,
@@ -97,10 +93,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             });
             return true;
         } catch (error: any) {
-            console.error('Registration failed:', error);
+            console.error('Error de registro:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Registration failed'
+                error: error?.response?.data?.message || error.message || 'Error al registrarse'
             });
             return false;
         }
@@ -110,42 +106,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     logout: async () => {
         set({ isLoading: true });
         try {
-            await apiService.clearToken();
-            await AsyncStorage.removeItem('auth_token');
+            await authService.logout();
             set({
                 user: null,
                 token: null,
                 isLoading: false
             });
         } catch (error: any) {
-            console.error('Logout failed:', error);
+            console.error('Error de logout:', error);
             set({
                 isLoading: false,
-                error: error.message || 'Logout failed'
+                error: error.message || 'Error al cerrar sesión'
             });
         }
     },
 
-    // Update profile
+    // Actualizar perfil
     updateProfile: async (profileData: any) => {
         set({ isLoading: true, error: null });
         try {
-            const updatedUser = await apiService.updateUserProfile(profileData);
+            const updatedUser = await authService.updateProfile(profileData);
             set({
                 user: { ...get().user, ...updatedUser },
                 isLoading: false
             });
             return true;
         } catch (error: any) {
-            console.error('Profile update failed:', error);
+            console.error('Error al actualizar perfil:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Profile update failed'
+                error: error?.response?.data?.message || error.message || 'Error al actualizar perfil'
             });
             return false;
         }
     },
 
-    // Clear error
+    // Limpiar error
     clearError: () => set({ error: null })
 }));

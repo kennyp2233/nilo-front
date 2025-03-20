@@ -1,20 +1,7 @@
-// stores/locationStore.ts
+// src/stores/locationStore.ts (Actualizado)
 import { create } from 'zustand';
-import { LocationService } from '@/src/services/location.service';
-
-export interface Location {
-    id?: string;
-    latitude: number;
-    longitude: number;
-    name?: string;
-    displayName?: string;
-    address?: {
-        street?: string;
-        city?: string;
-        state?: string;
-        country?: string;
-    };
-}
+import { locationService } from '@/src/services';
+import { Location } from '@/src/services';
 
 interface LocationState {
     recentLocations: Location[];
@@ -23,7 +10,7 @@ interface LocationState {
     searchQuery: string;
     error: string | null;
 
-    // Actions
+    // Acciones
     searchLocations: (query: string) => Promise<Location[]>;
     reverseGeocode: (latitude: number, longitude: number) => Promise<Location | null>;
     saveRecentLocation: (location: Location) => Promise<void>;
@@ -44,14 +31,14 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     searchLocations: async (query: string) => {
         set({ isSearching: true, searchQuery: query });
         try {
-            const results = await LocationService.searchLocations(query);
+            const results = await locationService.searchLocations(query);
             set({ searchResults: results, isSearching: false });
             return results;
         } catch (error: any) {
-            console.error('Error searching locations:', error);
+            console.error('Error buscando ubicaciones:', error);
             set({
                 isSearching: false,
-                error: error?.message || 'Failed to search locations'
+                error: error?.message || 'Error al buscar ubicaciones'
             });
             return [];
         }
@@ -59,41 +46,41 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
     reverseGeocode: async (latitude: number, longitude: number) => {
         try {
-            const location = await LocationService.reverseGeocode(latitude, longitude);
+            const location = await locationService.reverseGeocode(latitude, longitude);
             return location;
         } catch (error: any) {
-            console.error('Error reverse geocoding:', error);
-            set({ error: error?.message || 'Failed to get location from coordinates' });
+            console.error('Error en geocodificación inversa:', error);
+            set({ error: error?.message || 'Error al obtener ubicación de coordenadas' });
             return null;
         }
     },
 
     saveRecentLocation: async (location: Location) => {
         try {
-            await LocationService.saveRecentLocation(location);
+            await locationService.saveRecentLocation(location);
             await get().getRecentLocations();
         } catch (error: any) {
-            console.error('Error saving recent location:', error);
-            set({ error: error?.message || 'Failed to save recent location' });
+            console.error('Error guardando ubicación reciente:', error);
+            set({ error: error?.message || 'Error al guardar ubicación reciente' });
         }
     },
 
     getRecentLocations: async () => {
         try {
-            const recentLocations = await LocationService.getRecentLocations();
+            const recentLocations = await locationService.getRecentLocations();
             set({ recentLocations });
         } catch (error: any) {
-            console.error('Error getting recent locations:', error);
-            set({ error: error?.message || 'Failed to get recent locations' });
+            console.error('Error obteniendo ubicaciones recientes:', error);
+            set({ error: error?.message || 'Error al obtener ubicaciones recientes' });
         }
     },
 
     getRoute: async (startCoords: [number, number], endCoords: [number, number]) => {
         try {
-            return await LocationService.getRoute(startCoords, endCoords);
+            return await locationService.getRoute(startCoords, endCoords);
         } catch (error: any) {
-            console.error('Error fetching route:', error);
-            set({ error: error?.message || 'Failed to get route' });
+            console.error('Error obteniendo ruta:', error);
+            set({ error: error?.message || 'Error al obtener ruta' });
             throw error;
         }
     },
@@ -104,3 +91,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
     clearError: () => set({ error: null })
 }));
+
+// Re-exportamos el tipo Location para que esté disponible al importar desde el store
+export type { Location };

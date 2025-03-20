@@ -1,56 +1,7 @@
-// stores/tripStore.ts
+// src/stores/tripStore.ts (Actualizado)
 import { create } from 'zustand';
-import { apiService } from '@/src/services/api.service';
-import { LocationService } from '@/src/services/location.service';
-
-export interface Location {
-    latitude: number;
-    longitude: number;
-    name?: string;
-    displayName?: string;
-    address?: {
-        street?: string;
-        city?: string;
-        state?: string;
-        country?: string;
-    };
-}
-
-export interface TripRequest {
-    type: 'ON_DEMAND' | 'INTERCITY';
-    startLocation: Location;
-    endLocation: Location;
-    scheduledAt?: string; // ISO date string for scheduled trips
-    availableSeats?: number; // For intercity trips
-    pricePerSeat?: number; // For intercity trips
-}
-
-export interface Trip {
-    id: string;
-    type: 'ON_DEMAND' | 'INTERCITY';
-    status: 'SEARCHING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'SCHEDULED';
-    startLocation: Location;
-    endLocation: Location;
-    passengerId: string;
-    driverId?: string;
-    vehicleId?: string;
-    scheduledAt?: string;
-    startedAt?: string;
-    completedAt?: string;
-    cancelledAt?: string;
-    cancellationReason?: string;
-    distance?: number;
-    duration?: number;
-    price?: number;
-    // Additional fields based on type
-    availableSeats?: number;
-    pricePerSeat?: number;
-    // Populated relations
-    driver?: any;
-    vehicle?: any;
-    passenger?: any;
-    payment?: any;
-}
+import { tripService, locationService } from '@/src/services';
+import { Location, Trip, TripRequest } from '@/src/services';
 
 interface TripState {
     trips: Trip[];
@@ -59,7 +10,7 @@ interface TripState {
     error: string | null;
     route: any | null;
 
-    // Actions
+    // Acciones
     fetchTrips: (status?: string) => Promise<void>;
     fetchTripDetails: (tripId: string) => Promise<Trip | null>;
     createTrip: (tripRequest: TripRequest) => Promise<Trip | null>;
@@ -78,43 +29,43 @@ export const useTripStore = create<TripState>((set, get) => ({
     error: null,
     route: null,
 
-    // Fetch all trips or filtered by status
+    // Obtener todos los viajes o filtrados por estado
     fetchTrips: async (status?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const trips = await apiService.getTrips(status);
+            const trips = await tripService.getTrips(status);
             set({ trips, isLoading: false });
         } catch (error: any) {
-            console.error('Failed to fetch trips:', error);
+            console.error('Error obteniendo viajes:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to fetch trips'
+                error: error?.response?.data?.message || error.message || 'Error al obtener viajes'
             });
         }
     },
 
-    // Fetch details of a specific trip
+    // Obtener detalles de un viaje específico
     fetchTripDetails: async (tripId: string) => {
         set({ isLoading: true, error: null });
         try {
-            const trip = await apiService.getTripDetails(tripId);
+            const trip = await tripService.getTripDetails(tripId);
             set({ activeTrip: trip, isLoading: false });
             return trip;
         } catch (error: any) {
-            console.error(`Failed to fetch trip details for ID ${tripId}:`, error);
+            console.error(`Error obteniendo detalles del viaje ${tripId}:`, error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to fetch trip details'
+                error: error?.response?.data?.message || error.message || 'Error al obtener detalles del viaje'
             });
             return null;
         }
     },
 
-    // Create a new trip
+    // Crear un nuevo viaje
     createTrip: async (tripRequest: TripRequest) => {
         set({ isLoading: true, error: null });
         try {
-            const trip = await apiService.createTrip(tripRequest);
+            const trip = await tripService.createTrip(tripRequest);
             set({
                 activeTrip: trip,
                 trips: [trip, ...get().trips],
@@ -122,32 +73,27 @@ export const useTripStore = create<TripState>((set, get) => ({
             });
             return trip;
         } catch (error: any) {
-            console.error('Failed to create trip:', error);
+            console.error('Error creando viaje:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to create trip'
+                error: error?.response?.data?.message || error.message || 'Error al crear viaje'
             });
             return null;
         }
     },
 
-    // Update trip status
+    // Actualizar estado del viaje
     updateTripStatus: async (tripId: string, status: string, reason?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const statusData: any = { status };
-            if (reason && status === 'CANCELLED') {
-                statusData.cancellationReason = reason;
-            }
+            const updatedTrip = await tripService.updateTripStatus(tripId, status, reason);
 
-            const updatedTrip = await apiService.updateTripStatus(tripId, statusData);
-
-            // Update active trip if it's the same
+            // Actualizar viaje activo si es el mismo
             if (get().activeTrip?.id === tripId) {
                 set({ activeTrip: updatedTrip });
             }
 
-            // Update in trips list
+            // Actualizar en la lista de viajes
             const updatedTrips = get().trips.map(trip =>
                 trip.id === tripId ? updatedTrip : trip
             );
@@ -155,27 +101,27 @@ export const useTripStore = create<TripState>((set, get) => ({
             set({ trips: updatedTrips, isLoading: false });
             return true;
         } catch (error: any) {
-            console.error(`Failed to update trip status for ID ${tripId}:`, error);
+            console.error(`Error actualizando estado del viaje ${tripId}:`, error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to update trip status'
+                error: error?.response?.data?.message || error.message || 'Error al actualizar estado del viaje'
             });
             return false;
         }
     },
 
-    // Accept a trip (for drivers)
+    // Aceptar un viaje (para conductores)
     acceptTrip: async (tripId: string) => {
         set({ isLoading: true, error: null });
         try {
-            const acceptedTrip = await apiService.acceptTrip(tripId);
+            const acceptedTrip = await tripService.acceptTrip(tripId);
 
-            // Update active trip if it's the same
+            // Actualizar viaje activo si es el mismo
             if (get().activeTrip?.id === tripId) {
                 set({ activeTrip: acceptedTrip });
             }
 
-            // Update in trips list
+            // Actualizar en la lista de viajes
             const updatedTrips = get().trips.map(trip =>
                 trip.id === tripId ? acceptedTrip : trip
             );
@@ -183,56 +129,58 @@ export const useTripStore = create<TripState>((set, get) => ({
             set({ trips: updatedTrips, isLoading: false });
             return true;
         } catch (error: any) {
-            console.error(`Failed to accept trip for ID ${tripId}:`, error);
+            console.error(`Error aceptando viaje ${tripId}:`, error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to accept trip'
+                error: error?.response?.data?.message || error.message || 'Error al aceptar viaje'
             });
             return false;
         }
     },
 
-    // Rate a trip
+    // Calificar un viaje
     rateTrip: async (tripId: string, toUserId: string, score: number, comment?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const ratingData = { toUserId, score, comment };
-            await apiService.rateTrip(tripId, ratingData);
+            await tripService.rateTrip(tripId, toUserId, score, comment);
             set({ isLoading: false });
             return true;
         } catch (error: any) {
-            console.error(`Failed to rate trip for ID ${tripId}:`, error);
+            console.error(`Error calificando viaje ${tripId}:`, error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to rate trip'
+                error: error?.response?.data?.message || error.message || 'Error al calificar viaje'
             });
             return false;
         }
     },
 
-    // Fetch route between two locations
+    // Obtener ruta entre dos ubicaciones
     fetchRoute: async (startLocation: Location, endLocation: Location) => {
         set({ isLoading: true, error: null, route: null });
         try {
-            const route = await LocationService.getRoute(
+            const route = await locationService.getRoute(
                 [startLocation.latitude, startLocation.longitude],
                 [endLocation.latitude, endLocation.longitude]
             );
             set({ route, isLoading: false });
             return route;
         } catch (error: any) {
-            console.error('Failed to fetch route:', error);
+            console.error('Error obteniendo ruta:', error);
             set({
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Failed to fetch route'
+                error: error?.response?.data?.message || error.message || 'Error al obtener ruta'
             });
             return null;
         }
     },
 
-    // Clear error
+    // Limpiar error
     clearError: () => set({ error: null }),
 
-    // Set active trip
+    // Establecer viaje activo
     setActiveTrip: (trip: Trip | null) => set({ activeTrip: trip })
 }));
+
+// Re-exportamos los tipos para que estén disponibles al importar desde el store
+export type { Location, Trip, TripRequest };
