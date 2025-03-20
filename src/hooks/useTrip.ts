@@ -1,4 +1,4 @@
-// hooks/useTrip.ts
+// src/hooks/useTrip.ts (Actualizado)
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useTripStore, Location, TripRequest, Trip } from '@/src/stores/tripStore';
 import { useAuth } from './useAuth';
@@ -35,6 +35,14 @@ export function useTrip(tripId?: string) {
     const routeRetryCount = useRef(0);
     const MAX_ROUTE_RETRIES = 2;
 
+    // Estado para mantener un caché de viajes por estado
+    const [tripsByStatus, setTripsByStatus] = useState<{
+        [key: string]: Trip[];
+    }>({});
+
+    // Estado para rastrear si la sincronización inicial de viajes ha ocurrido
+    const [initialSyncDone, setInitialSyncDone] = useState(false);
+
     // Load specific trip if ID provided
     useEffect(() => {
         if (isAuthenticated && tripId) {
@@ -44,10 +52,44 @@ export function useTrip(tripId?: string) {
 
     // Fetch all trips when authenticated
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchTrips();
+        if (isAuthenticated && !initialSyncDone) {
+            fetchAllTrips();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, initialSyncDone]);
+
+    // Fetch trips for all statuses
+    const fetchAllTrips = async () => {
+        if (!isAuthenticated) return;
+
+        try {
+            // Primero obtenemos todos los viajes
+            await fetchTrips();
+            setInitialSyncDone(true);
+
+            // Luego podemos obtener viajes específicos por estado si es necesario
+            // Esto dependería de la API y los requisitos específicos
+        } catch (error) {
+            console.error('Error fetching all trips:', error);
+        }
+    };
+
+    // Get trips filtered by status
+    const getTripsByStatus = useCallback((status?: string | string[]) => {
+        if (!status) return trips;
+
+        if (Array.isArray(status)) {
+            return trips.filter(trip => status.includes(trip.status));
+        }
+
+        return trips.filter(trip => trip.status === status);
+    }, [trips]);
+
+    // Get active trips (any trip that's not completed or cancelled)
+    const getActiveTrips = useCallback(() => {
+        return trips.filter(trip =>
+            !['COMPLETED', 'CANCELLED'].includes(trip.status)
+        );
+    }, [trips]);
 
     // Update route when origin and destination change
     useEffect(() => {
@@ -111,7 +153,7 @@ export function useTrip(tripId?: string) {
 
         const trip = await createTrip(tripRequest);
         if (trip) {
-            router.push(`/trips/${trip.id}`);
+            router.push(`/trip/details?tripId=${trip.id}`);
         }
         return trip;
     }, [origin, destination, tripType, scheduledAt, availableSeats, pricePerSeat]);
@@ -138,6 +180,11 @@ export function useTrip(tripId?: string) {
         setRouteError(false);
     }, []);
 
+    // Refrescar todos los viajes
+    const refreshAllTrips = useCallback(async () => {
+        await fetchAllTrips();
+    }, []);
+
     return {
         // State
         trips,
@@ -153,6 +200,10 @@ export function useTrip(tripId?: string) {
         availableSeats,
         pricePerSeat,
 
+        // Trip filtering methods
+        getTripsByStatus,
+        getActiveTrips,
+
         // Actions
         setOrigin,
         setDestination,
@@ -165,7 +216,7 @@ export function useTrip(tripId?: string) {
         acceptTrip,
         rateTrip,
         fetchTripDetails,
-        fetchTrips,
+        fetchTrips: refreshAllTrips,
         resetForm,
         clearError
     };
