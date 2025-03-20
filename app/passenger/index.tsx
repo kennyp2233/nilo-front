@@ -1,6 +1,6 @@
-// app/passenger/index.tsx (Actualizado)
+// app/passenger/index.tsx
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, TouchableOpacity, Text } from "react-native";
+import { View, ScrollView, StyleSheet } from "react-native";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useRouter } from "expo-router";
 import SearchBar from "@/src/components/passenger/SearchBar";
@@ -9,9 +9,9 @@ import Suggestions from "@/src/components/passenger/Suggestions";
 import Promotions from "@/src/components/passenger/Promotions";
 import ActiveTripCard from "@/src/components/passenger/ActiveTripCard";
 import { useTrip } from "@/src/hooks/useTrip";
-import { Ionicons } from "@expo/vector-icons";
+import { FloatingActionButton, EmptyState } from "@/src/components/ui";
 
-// Datos simulados para componentes (en producción vendrían de la API)
+// Sample data for components (in production would come from API)
 const recentTrips = [
     {
         id: "1",
@@ -48,7 +48,7 @@ const suggestions = [
     }
 ];
 
-const promotions = [
+const promotions: any[] = [
     {
         id: "1",
         title: "25% OFF en tu próximo viaje",
@@ -74,69 +74,80 @@ export default function HomeScreen() {
     const router = useRouter();
     const { fetchTrips, trips, getActiveTrips } = useTrip();
     const [activeTrips, setActiveTrips] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Cargar viajes al montar el componente
+    // Load trips when component mounts
     useEffect(() => {
         loadTrips();
     }, []);
 
-    // Actualizar viajes activos cuando cambia la lista de viajes
+    // Update active trips when the list of trips changes
     useEffect(() => {
         const active = getActiveTrips();
         setActiveTrips(active);
+        setIsLoading(false);
     }, [trips, getActiveTrips]);
 
-    // Cargar viajes
+    // Load trips
     const loadTrips = async () => {
+        setIsLoading(true);
         await fetchTrips();
     };
 
-    // Ver todos los viajes
+    // View all trips
     const handleViewAllTrips = () => {
         router.push('/trip/list');
     };
 
+    // Request new trip
+    const handleRequestTrip = () => {
+        router.push('/trip/planner');
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
-            <ScrollView style={{ padding: 16 }}>
-                <View style={{ gap: 16 }}>
-                    <SearchBar />
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <SearchBar />
 
-                    {/* Sección de viajes activos */}
-                    {activeTrips.length > 0 && (
-                        <View style={styles.section}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
-                                    Viajes activos
-                                </Text>
-                                <TouchableOpacity onPress={handleViewAllTrips}>
-                                    <Text style={[styles.viewAllText, { color: colors.primary }]}>
-                                        Ver todos
-                                    </Text>
-                                </TouchableOpacity>
+                {/* Active trips section */}
+                {activeTrips.length > 0 && (
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.sectionTitle}>
+                                <EmptyState
+                                    title="Viajes activos"
+                                    description={`Tienes ${activeTrips.length} viaje${activeTrips.length > 1 ? 's' : ''} activo${activeTrips.length > 1 ? 's' : ''}`}
+                                    icon="car"
+                                    actionLabel="Ver todos"
+                                    onAction={handleViewAllTrips}
+                                    style={styles.activeTripsEmpty}
+                                />
                             </View>
-
-                            {activeTrips.map(trip => (
-                                <ActiveTripCard key={trip.id} trip={trip} />
-                            ))}
                         </View>
-                    )}
 
-                    <RecentTrips trips={recentTrips} />
-                    <Suggestions suggestions={suggestions} />
-                    <Promotions promotions={promotions as any} />
-                </View>
+                        {activeTrips.map(trip => (
+                            <ActiveTripCard key={trip.id} trip={trip} />
+                        ))}
+                    </View>
+                )}
+
+                {/* Main content */}
+                <RecentTrips trips={recentTrips} />
+                <Suggestions suggestions={suggestions} />
+                <Promotions promotions={promotions} />
             </ScrollView>
 
-            {/* Botón flotante para ver todos los viajes */}
-            {activeTrips.length > 0 && (
-                <TouchableOpacity
-                    style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-                    onPress={handleViewAllTrips}
-                >
-                    <Ionicons name="list" size={24} color="white" />
-                </TouchableOpacity>
-            )}
+            {/* Floating action button for requesting a trip */}
+            <FloatingActionButton
+                icon="car"
+                label="Solicitar NILO"
+                onPress={handleRequestTrip}
+                extended={true}
+                position="bottomRight"
+            />
         </View>
     );
 }
@@ -145,8 +156,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    scrollContent: {
+        padding: 16,
+        paddingBottom: 80, // Extra space for FAB
+    },
     section: {
-        marginBottom: 8,
+        marginBottom: 24,
     },
     sectionHeader: {
         flexDirection: "row",
@@ -155,26 +170,11 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     sectionTitle: {
-        fontSize: 20,
-        fontWeight: "600",
+        flex: 1,
     },
-    viewAllText: {
-        fontSize: 14,
-        fontWeight: "500",
+    activeTripsEmpty: {
+        minHeight: 0,
+        padding: 0,
+        alignItems: 'flex-start',
     },
-    floatingButton: {
-        position: 'absolute',
-        bottom: 16,
-        right: 16,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    }
 });

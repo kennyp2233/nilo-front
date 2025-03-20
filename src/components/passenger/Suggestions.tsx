@@ -1,8 +1,9 @@
-// src/components/home/Suggestions.tsx
+// src/components/passenger/Suggestions.tsx
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/theme/ThemeContext";
+import { Text, Card, Badge } from "@/src/components/ui";
 
 type Suggestion = {
     id: string;
@@ -20,38 +21,52 @@ export default function Suggestions({ suggestions }: Props) {
 
     return (
         <View style={styles.container}>
-            <Text style={[styles.title, { color: colors.text.primary }]}>
+            <Text variant="h4" weight="semibold" style={styles.title}>
                 Sugerencias
             </Text>
+
             <View style={styles.grid}>
                 {suggestions.map(suggestion => (
-                    <TouchableOpacity
+                    <Card
                         key={suggestion.id}
-                        style={[
-                            styles.suggestionItem,
-                            { backgroundColor: colors.background.secondary }
-                        ]}
+                        variant="default"
+                        padding="medium"
+                        style={styles.suggestionItem}
                     >
                         <View style={styles.suggestionContent}>
-                            <Text style={[styles.suggestionTitle, { color: colors.text.primary }]}>
+                            <Text
+                                variant="subtitle"
+                                weight="semibold"
+                                style={styles.suggestionTitle}
+                            >
                                 {suggestion.title}
                             </Text>
+
                             <View style={styles.suggestionDetails}>
                                 <View style={styles.distance}>
-                                    <Ionicons name="location" size={14} color={colors.text.secondary} />
-                                    <Text style={[styles.distanceText, { color: colors.text.secondary }]}>
+                                    <Ionicons
+                                        name="location"
+                                        size={14}
+                                        color={colors.text.secondary}
+                                    />
+                                    <Text variant="caption" color="secondary">
                                         {suggestion.distance}
                                     </Text>
                                 </View>
+
                                 <View style={styles.rating}>
-                                    <Ionicons name="star" size={14} color={colors.warning} />
-                                    <Text style={[styles.ratingText, { color: colors.text.secondary }]}>
+                                    <Ionicons
+                                        name="star"
+                                        size={14}
+                                        color={colors.warning}
+                                    />
+                                    <Text variant="caption" color="secondary">
                                         {suggestion.rating}
                                     </Text>
                                 </View>
                             </View>
                         </View>
-                    </TouchableOpacity>
+                    </Card>
                 ))}
             </View>
         </View>
@@ -63,8 +78,7 @@ const styles = StyleSheet.create({
         gap: 12
     },
     title: {
-        fontSize: 20,
-        fontWeight: "600"
+        marginBottom: 8
     },
     grid: {
         flexDirection: "row",
@@ -74,15 +88,12 @@ const styles = StyleSheet.create({
     suggestionItem: {
         flex: 1,
         minWidth: "45%",
-        borderRadius: 8,
-        padding: 16
     },
     suggestionContent: {
         gap: 8
     },
     suggestionTitle: {
         fontSize: 16,
-        fontWeight: "500"
     },
     suggestionDetails: {
         flexDirection: "row",
@@ -94,15 +105,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 4
     },
-    distanceText: {
-        fontSize: 12
-    },
     rating: {
         flexDirection: "row",
         alignItems: "center",
         gap: 4
-    },
-    ratingText: {
-        fontSize: 12
     }
 });

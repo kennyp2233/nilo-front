@@ -1,15 +1,17 @@
+// src/components/passenger/TopTabs.tsx
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/src/components/ui";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type TopTabItem = {
     name: string;
     title: string;
-    icon: keyof typeof Ionicons.glyphMap; // Definir que el icono será de Ionicons
+    icon: keyof typeof Ionicons.glyphMap;
 };
 
 type Props = {
@@ -40,13 +42,10 @@ export default function TopTabs({ tabs }: Props) {
                             color={isActive ? colors.primary : colors.text.secondary}
                         />
                         <Text
-                            style={[
-                                styles.tabText,
-                                {
-                                    color: isActive ? colors.primary : colors.text.secondary,
-                                    fontWeight: isActive ? "600" : "400"
-                                }
-                            ]}
+                            variant="subtitle"
+                            weight={isActive ? "semibold" : "normal"}
+                            color={isActive ? "accent" : "secondary"}
+                            style={styles.tabText}
                         >
                             {tab.title}
                         </Text>
@@ -74,6 +73,5 @@ const styles = StyleSheet.create({
     },
     tabText: {
         fontSize: 16,
-        marginTop: 4 // Espacio entre el icono y el texto
     }
 });

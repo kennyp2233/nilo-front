@@ -1,8 +1,10 @@
+// src/components/common/CustomTabs.tsx
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
+import { Text } from "@/src/components/ui";
 import type { RelativePathString } from "expo-router";
 
 type TabItem = {
@@ -56,11 +58,11 @@ export default function CustomTabs({ tabs, style }: Props) {
               color={isActive ? colors.background.primary : colors.text.secondary}
             />
             <Text
+              variant="caption"
+              color={isActive ? "primary" : "secondary"}
               style={[
                 styles.tabText,
-                {
-                  color: isActive ? colors.background.primary : colors.text.secondary
-                }
+                { color: isActive ? colors.background.primary : colors.text.secondary }
               ]}
             >
               {tab.title}

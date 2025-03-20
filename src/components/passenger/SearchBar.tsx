@@ -1,9 +1,10 @@
-// src/components/home/SearchBar.tsx
+// src/components/passenger/SearchBar.tsx
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useRouter } from "expo-router";
+import { Text, Input } from "@/src/components/ui";
 
 export default function SearchBar() {
     const { colors } = useTheme();
@@ -13,27 +14,34 @@ export default function SearchBar() {
         router.push('/trip/planner');
     };
 
-
     return (
         <TouchableOpacity
             style={[styles.container, { backgroundColor: colors.background.secondary }]}
             onPress={handlePress}
+            activeOpacity={0.7}
         >
-            <Ionicons name="search" size={20} color={colors.text.secondary} />
-            <Text style={[styles.text, { color: colors.text.secondary }]}>
-                ¿A dónde vas?
-            </Text>
+            <View style={styles.searchContent}>
+                <Ionicons name="search" size={20} color={colors.text.secondary} />
+                <Text
+                    variant="body"
+                    color="secondary"
+                    style={styles.text}
+                >
+                    ¿A dónde vas?
+                </Text>
+            </View>
         </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
+        borderRadius: 8,
+    },
+    searchContent: {
         flexDirection: "row",
         alignItems: "center",
         padding: 16,
-
-        borderRadius: 8,
         gap: 12
     },
     text: {

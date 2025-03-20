@@ -1,8 +1,9 @@
-// src/components/home/Promotions.tsx
+// src/components/passenger/Promotions.tsx
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, ScrollView } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/theme/ThemeContext";
+import { Text, Card, Badge } from "@/src/components/ui";
 
 type Promotion = {
     id: string;
@@ -31,36 +32,59 @@ export default function Promotions({ promotions }: Props) {
         }
     };
 
+    const getPromoColor = (type: Promotion["type"]): "primary" | "secondary" | "warning" => {
+        switch (type) {
+            case "discount":
+                return "primary";
+            case "rewards":
+                return "secondary";
+            case "special":
+                return "warning";
+            default:
+                return "primary";
+        }
+    };
+
     return (
         <View style={styles.container}>
-            <Text style={[styles.title, { color: colors.text.primary }]}>
+            <Text variant="h4" weight="semibold" style={styles.title}>
                 Promociones
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollView}>
+
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.scrollView}
+            >
                 {promotions.map(promo => (
-                    <TouchableOpacity
+                    <Card
                         key={promo.id}
-                        style={[
-                            styles.promoCard,
-                            { backgroundColor: colors.background.secondary }
-                        ]}
+                        variant="default"
+                        padding="medium"
+                        style={[styles.promoCard]}
                     >
-                        <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
-                            <Ionicons
-                                name={getPromoIcon(promo.type)}
-                                size={24}
-                                color={colors.background.primary}
-                            />
-                        </View>
                         <View style={styles.promoContent}>
-                            <Text style={[styles.promoTitle, { color: colors.text.primary }]}>
-                                {promo.title}
-                            </Text>
-                            <Text style={[styles.promoDescription, { color: colors.text.secondary }]}>
-                                {promo.description}
-                            </Text>
+                            <View style={[
+                                styles.iconContainer,
+                                { backgroundColor: colors[getPromoColor(promo.type)] }
+                            ]}>
+                                <Ionicons
+                                    name={getPromoIcon(promo.type)}
+                                    size={24}
+                                    color={colors.background.primary}
+                                />
+                            </View>
+
+                            <View style={styles.textContainer}>
+                                <Text variant="subtitle" weight="semibold">
+                                    {promo.title}
+                                </Text>
+                                <Text variant="body" color="secondary">
+                                    {promo.description}
+                                </Text>
+                            </View>
                         </View>
-                    </TouchableOpacity>
+                    </Card>
                 ))}
             </ScrollView>
         </View>
@@ -72,20 +96,20 @@ const styles = StyleSheet.create({
         gap: 12
     },
     title: {
-        fontSize: 20,
-        fontWeight: "600"
+        marginBottom: 8
     },
     scrollView: {
         marginHorizontal: -16
     },
     promoCard: {
-        flexDirection: "row",
-        marginHorizontal: 8,
-        padding: 16,
-        borderRadius: 8,
         width: 300,
-        gap: 16,
-        alignItems: "center"
+        marginHorizontal: 8,
+        marginVertical: 4
+    },
+    promoContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16
     },
     iconContainer: {
         width: 48,
@@ -94,15 +118,8 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center"
     },
-    promoContent: {
+    textContainer: {
         flex: 1,
         gap: 4
-    },
-    promoTitle: {
-        fontSize: 16,
-        fontWeight: "500"
-    },
-    promoDescription: {
-        fontSize: 14
     }
 });

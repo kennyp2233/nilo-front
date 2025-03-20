@@ -1,10 +1,11 @@
 // src/components/passenger/ActiveTripCard.tsx
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/theme/ThemeContext';
 import { Trip } from '@/src/stores/tripStore';
 import { useRouter } from 'expo-router';
+import { Text, Card, Button, Avatar, Badge } from '@/src/components/ui';
 
 interface ActiveTripCardProps {
     trip: Trip;
@@ -14,12 +15,12 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
     const { colors } = useTheme();
     const router = useRouter();
 
-    // Continuar al viaje
+    // Navigate to trip details
     const handleContinueTrip = () => {
         router.push(`/trip/details?tripId=${trip.id}`);
     };
 
-    // Formatear tiempo
+    // Format time
     const getFormattedTime = () => {
         if (trip.status === 'SCHEDULED' && trip.scheduledAt) {
             const date = new Date(trip.scheduledAt);
@@ -31,14 +32,13 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
         return '';
     };
 
-    // Obtener mensaje según estado
+    // Get status message based on state
     const getStatusMessage = () => {
         switch (trip.status) {
             case 'SEARCHING':
                 return 'Buscando conductor...';
             case 'CONFIRMED':
                 return 'Conductor en camino';
-
             case 'IN_PROGRESS':
                 return 'Viaje en progreso';
             case 'SCHEDULED':
@@ -48,31 +48,29 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
         }
     };
 
-    // Obtener color según estado
-    const getStatusColor = () => {
+    // Get color based on status
+    const getStatusColor = (): 'primary' | 'warning' | 'error' | 'success' => {
         switch (trip.status) {
             case 'SEARCHING':
-                return colors.primary;
+                return 'primary';
             case 'CONFIRMED':
-                return colors.primary;
-
+                return 'primary';
             case 'IN_PROGRESS':
-                return colors.primary;
+                return 'primary';
             case 'SCHEDULED':
-                return colors.warning;
+                return 'warning';
             default:
-                return colors.text.secondary;
+                return 'primary';
         }
     };
 
-    // Obtener icono según estado
+    // Get icon based on status
     const getStatusIcon = () => {
         switch (trip.status) {
             case 'SEARCHING':
                 return 'search';
             case 'CONFIRMED':
                 return 'car-outline';
-
             case 'IN_PROGRESS':
                 return 'navigate';
             case 'SCHEDULED':
@@ -83,57 +81,91 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
     };
 
     return (
-        <TouchableOpacity
-            style={[styles.container, { backgroundColor: colors.background.secondary }]}
+        <Card
+            style={styles.container}
+            variant="default"
+            padding="none"
             onPress={handleContinueTrip}
         >
-            {/* Indicador de estado */}
-            <View style={[styles.statusBar, { backgroundColor: getStatusColor() }]} />
+            {/* Status bar */}
+            <View style={[
+                styles.statusBar,
+                { backgroundColor: colors[getStatusColor()] }
+            ]} />
 
             <View style={styles.content}>
-                {/* Icono y estado */}
+                {/* Status section */}
                 <View style={styles.statusSection}>
-                    <View style={[styles.iconContainer, { backgroundColor: getStatusColor() + '20' }]}>
-                        <Ionicons name={getStatusIcon() as any} size={20} color={getStatusColor()} />
+                    <View style={[
+                        styles.iconContainer,
+                        { backgroundColor: colors[getStatusColor()] + '20' }
+                    ]}>
+                        <Ionicons
+                            name={getStatusIcon() as any}
+                            size={20}
+                            color={colors[getStatusColor()]}
+                        />
                     </View>
-                    <Text style={[styles.statusText, { color: getStatusColor() }]}>
+                    <Text
+                        style={{ color: colors[getStatusColor()] }}
+                        variant="body"
+                        weight="semibold"
+                    >
                         {getStatusMessage()}
                     </Text>
                 </View>
 
-                {/* Detalles del viaje */}
+                {/* Trip details */}
                 <View style={styles.tripDetails}>
-                    {/* Origen y destino */}
+                    {/* Origin and destination */}
                     <View style={styles.locations}>
                         <View style={styles.locationRow}>
-                            <View style={[styles.locationDot, { backgroundColor: colors.success }]} />
-                            <Text style={[styles.locationText, { color: colors.text.primary }]} numberOfLines={1}>
+                            <View style={[
+                                styles.locationDot,
+                                { backgroundColor: colors.success }
+                            ]} />
+                            <Text
+                                variant="body"
+                                numberOfLines={1}
+                            >
                                 {trip.startLocation?.name || "Origen"}
                             </Text>
                         </View>
 
                         <View style={styles.locationRow}>
-                            <View style={[styles.locationDot, { backgroundColor: colors.error }]} />
-                            <Text style={[styles.locationText, { color: colors.text.primary }]} numberOfLines={1}>
+                            <View style={[
+                                styles.locationDot,
+                                { backgroundColor: colors.error }
+                            ]} />
+                            <Text
+                                variant="body"
+                                numberOfLines={1}
+                            >
                                 {trip.endLocation?.name || "Destino"}
                             </Text>
                         </View>
                     </View>
 
-                    {/* Información del conductor si está disponible */}
+                    {/* Driver info if available */}
                     {(trip.status === 'CONFIRMED' || trip.status === 'IN_PROGRESS') && trip.driver && (
-                        <View style={styles.driverInfo}>
-                            <Image
-                                source={{ uri: trip.driver.profilePicture || 'https://placehold.co/100' }}
-                                style={styles.driverPhoto}
-                                defaultSource={require('@/assets/images/icon.png')}
+                        <View style={[
+                            styles.driverInfo,
+                            { borderTopColor: colors.border }
+                        ]}>
+                            <Avatar
+                                source={trip.driver.profilePicture ?
+                                    { uri: trip.driver.profilePicture } :
+                                    require('@/assets/images/icon.png')
+                                }
+                                name={`${trip.driver.firstName} ${trip.driver.lastName}`}
+                                size="small"
                             />
                             <View style={styles.driverDetails}>
-                                <Text style={[styles.driverName, { color: colors.text.primary }]}>
+                                <Text variant="body" weight="medium">
                                     {trip.driver.firstName} {trip.driver.lastName}
                                 </Text>
                                 {trip.vehicle && (
-                                    <Text style={[styles.vehicleInfo, { color: colors.text.secondary }]}>
+                                    <Text variant="caption" color="secondary">
                                         {trip.vehicle.make} {trip.vehicle.model} • {trip.vehicle.plate}
                                     </Text>
                                 )}
@@ -142,32 +174,28 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
                     )}
                 </View>
 
-                {/* Botón de acción */}
+                {/* Action button */}
                 <View style={styles.actionSection}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                    <Button
+                        title="Continuar"
+                        icon="chevron-forward"
+                        iconPosition="right"
+                        size="small"
+                        variant="primary"
                         onPress={handleContinueTrip}
-                    >
-                        <Text style={styles.actionButtonText}>Continuar</Text>
-                        <Ionicons name="chevron-forward" size={16} color="white" />
-                    </TouchableOpacity>
+                    />
                 </View>
             </View>
-        </TouchableOpacity>
+        </Card>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        borderRadius: 12,
-        overflow: 'hidden',
         marginHorizontal: 16,
         marginVertical: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 12,
+        overflow: 'hidden',
     },
     statusBar: {
         height: 4,
@@ -189,10 +217,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 8,
     },
-    statusText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
     tripDetails: {
         marginBottom: 16,
     },
@@ -210,48 +234,18 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         marginRight: 8,
     },
-    locationText: {
-        fontSize: 14,
-    },
     driverInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         borderTopWidth: 1,
-        borderTopColor: '#e0e0e0',
         paddingTop: 12,
-    },
-    driverPhoto: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-        backgroundColor: '#e1e1e1',
     },
     driverDetails: {
         flex: 1,
-    },
-    driverName: {
-        fontSize: 14,
-        fontWeight: '500',
-        marginBottom: 2,
-    },
-    vehicleInfo: {
-        fontSize: 12,
+        marginLeft: 12,
     },
     actionSection: {
         alignItems: 'flex-end',
-    },
-    actionButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 16,
-    },
-    actionButtonText: {
-        color: 'white',
-        fontWeight: '600',
-        marginRight: 4,
     },
 });
 
