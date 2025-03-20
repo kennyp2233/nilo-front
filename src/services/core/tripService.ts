@@ -25,7 +25,9 @@ export const tripService = {
      */
     async getTrips(status?: string): Promise<Trip[]> {
         try {
-            return await api.trips.getTrips(status);
+            const trips = await api.trips.getTrips(status);
+            console.log('Viajes obtenidos:', trips);
+            return trips;
         } catch (error) {
             console.error('Error obteniendo viajes:', error);
             throw error;

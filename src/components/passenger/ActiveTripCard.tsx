@@ -17,7 +17,7 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
 
     // Navigate to trip details
     const handleContinueTrip = () => {
-        router.push(`/trip/details?tripId=${trip.id}`);
+        router.push(`/trip/details?tripId=${trip.tripId}`);
     };
 
     // Format time
@@ -104,7 +104,7 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
                             <View style={styles.locationRow}>
                                 <View style={[styles.locationDot, { backgroundColor: colors.success }]} />
                                 <Text variant="caption" weight="medium" color="primary" numberOfLines={1}>
-                                    {trip.startLocation?.name || "Origen"}
+                                    {trip.trip.origin || "Origen"}
                                 </Text>
                             </View>
 
@@ -115,7 +115,7 @@ const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
                             <View style={styles.locationRow}>
                                 <View style={[styles.locationDot, { backgroundColor: colors.error }]} />
                                 <Text variant="caption" weight="medium" color="primary" numberOfLines={1}>
-                                    {trip.endLocation?.name || "Destino"}
+                                    {trip.trip.destination || "Destino"}
                                 </Text>
                             </View>
                         </View>

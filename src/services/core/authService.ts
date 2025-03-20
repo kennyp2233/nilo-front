@@ -39,6 +39,13 @@ export const authService = {
     async login(credentials: LoginCredentials): Promise<{ user: any; token: string }> {
         try {
             const response = await api.auth.login(credentials);
+
+            // Guardar el token en AsyncStorage
+            await storageService.setItem('auth_token', response.token);
+
+            // Establecer el token en el cliente API para futuras peticiones
+            await api.client.setToken(response.token);
+
             return {
                 user: response.user,
                 token: response.token
@@ -55,6 +62,13 @@ export const authService = {
     async register(userData: RegisterUserData): Promise<{ user: any; token: string }> {
         try {
             const response = await api.auth.register(userData);
+
+            // Guardar el token en AsyncStorage
+            await storageService.setItem('auth_token', response.token);
+
+            // Establecer el token en el cliente API
+            await api.client.setToken(response.token);
+
             return {
                 user: response.user,
                 token: response.token

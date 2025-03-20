@@ -48,7 +48,7 @@ const ActiveTripsSection: React.FC<ActiveTripsSectionProps> = ({ activeTrips }) 
             </View>
 
             {activeTrips.map(trip => (
-                <ActiveTripCard key={trip.id} trip={trip} />
+                <ActiveTripCard key={trip.tripId} trip={trip} />
             ))}
         </View>
     );

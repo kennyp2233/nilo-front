@@ -50,6 +50,12 @@ export interface Trip {
     vehicle?: any;
     passenger?: any;
     payment?: any;
+    trip: {
+        id: string;
+        origin: string;
+        destination: string;
+    }
+    tripId: string;
 }
 
 export interface StatusChangeData {

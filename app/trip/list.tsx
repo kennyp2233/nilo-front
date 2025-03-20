@@ -1,42 +1,199 @@
 // app/trip/list.tsx
 import React, { useEffect, useState } from "react";
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    FlatList,
-    ActivityIndicator,
-    RefreshControl,
-    Image
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useTrip } from "@/src/hooks/useTrip";
 import { Trip } from "@/src/stores/tripStore";
+import {
+    Header,
+    EmptyState,
+    Card,
+    Text,
+    Badge,
+    Divider,
+    StatusIndicator,
+    LoadingOverlay,
+    FloatingActionButton
+} from "@/src/components/ui";
+import { Ionicons } from "@expo/vector-icons";
+import { GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 
-// Tipos de filtro para los viajes
-type TripFilter = "ACTIVE" | "SCHEDULED" | "COMPLETED" | "CANCELLED" | "ALL";
+// Componente para cada viaje
+const TripItem = ({ trip, onPress }: { trip: Trip; onPress: () => void }) => {
+    const { colors } = useTheme();
+
+    // Función que retorna la información del estado del viaje
+    const getStatusInfo = (status: string) => {
+        switch (status) {
+            case "SEARCHING":
+                return {
+                    type: 'info' as const,
+                    label: 'Buscando conductor',
+                    icon: 'search'
+                };
+            case "CONFIRMED":
+                return {
+                    type: 'info' as const,
+                    label: 'Conductor en camino',
+                    icon: 'checkmark-circle'
+                };
+            case "ARRIVED":
+                return {
+                    type: 'info' as const,
+                    label: 'Conductor ha llegado',
+                    icon: 'location'
+                };
+            case "IN_PROGRESS":
+                return {
+                    type: 'info' as const,
+                    label: 'En viaje',
+                    icon: 'car'
+                };
+            case "COMPLETED":
+                return {
+                    type: 'success' as const,
+                    label: 'Completado',
+                    icon: 'checkmark-done-circle'
+                };
+            case "CANCELLED":
+                return {
+                    type: 'error' as const,
+                    label: 'Cancelado',
+                    icon: 'close-circle'
+                };
+            case "SCHEDULED":
+                return {
+                    type: 'warning' as const,
+                    label: 'Programado',
+                    icon: 'calendar'
+                };
+            default:
+                return {
+                    type: 'neutral' as const,
+                    label: 'Estado desconocido',
+                    icon: 'help-circle'
+                };
+        }
+    };
+
+    // Función para formatear fechas
+    const formatDate = (dateString?: string) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        return date.toLocaleString('es-EC', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    const statusInfo = getStatusInfo(trip.status);
+
+    return (
+        <Card style={styles.tripCard} variant="default" onPress={onPress}>
+            <View style={styles.tripHeader}>
+                <View style={styles.tripTypeContainer}>
+                    <Text variant="subtitle" weight="semibold">
+                        {trip.type === "ON_DEMAND" ? "NILO" : "NILO Rental"}
+                    </Text>
+                    <StatusIndicator
+                        type={statusInfo.type}
+                        label={statusInfo.label}
+                        iconOverride={statusInfo.icon as keyof typeof Ionicons.glyphMap}
+                        size="small"
+                        inline
+                    />
+                </View>
+                {trip.price && (
+                    <Text variant="title" weight="semibold">
+                        ${trip.price.toFixed(2)}
+                    </Text>
+                )}
+            </View>
+
+            <Divider margin="small" />
+
+            <View style={styles.locationContainer}>
+                <View style={styles.locationRow}>
+                    <View style={[styles.locationDot, { backgroundColor: colors.success }]} />
+                    <Text variant="body" numberOfLines={1}>
+                        {trip.startLocation?.name || "Punto de origen"}
+                    </Text>
+                </View>
+
+                <View style={styles.locationConnector}>
+                    <View style={[styles.verticalLine, { backgroundColor: colors.border }]} />
+                </View>
+
+                <View style={styles.locationRow}>
+                    <View style={[styles.locationDot, { backgroundColor: colors.error }]} />
+                    <Text variant="body" numberOfLines={1}>
+                        {trip.endLocation?.name || "Punto de destino"}
+                    </Text>
+                </View>
+            </View>
+
+            <Divider margin="small" />
+
+            <View style={styles.tripFooter}>
+                <View style={styles.tripInfoRow}>
+                    <View style={styles.tripInfoItem}>
+                        <Badge
+                            variant="outline"
+                            color="primary"
+                            label={
+                                trip.startedAt
+                                    ? formatDate(trip.startedAt)
+                                    : trip.scheduledAt
+                                        ? formatDate(trip.scheduledAt)
+                                        : formatDate(new Date().toISOString())
+                            }
+                            size="small"
+                        />
+                    </View>
+
+                    {trip.distance && (
+                        <View style={styles.tripInfoItem}>
+                            <Text variant="caption" color="secondary">
+                                {trip.distance.toFixed(1)} km
+                            </Text>
+                        </View>
+                    )}
+
+                    {trip.duration && (
+                        <View style={styles.tripInfoItem}>
+                            <Text variant="caption" color="secondary">
+                                {trip.duration} min
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
+        </Card>
+    );
+};
 
 export default function TripListScreen() {
     const { colors } = useTheme();
     const router = useRouter();
     const { trips, fetchTrips, isLoading } = useTrip();
-    const [activeFilter, setActiveFilter] = useState<TripFilter>("ACTIVE");
     const [refreshing, setRefreshing] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'scheduled' | 'completed' | 'cancelled'>('active');
 
     // Cargar viajes al montar el componente
     useEffect(() => {
         loadTrips();
     }, []);
 
-    // Cargar viajes
+    // Función para cargar viajes
     const loadTrips = async () => {
         await fetchTrips();
     };
 
-    // Refrescar lista de viajes
+    // Función para refrescar la lista
     const onRefresh = async () => {
         setRefreshing(true);
         await loadTrips();
@@ -45,394 +202,214 @@ export default function TripListScreen() {
 
     // Filtrar viajes según el filtro activo
     const getFilteredTrips = (): Trip[] => {
-        if (activeFilter === "ALL") {
+        if (activeFilter === 'all') {
             return trips;
         }
 
-        if (activeFilter === "ACTIVE") {
-            // Viajes activos: buscando, confirmados, en camino, o en progreso
+        if (activeFilter === 'active') {
             return trips.filter(trip =>
                 ["SEARCHING", "CONFIRMED", "ARRIVED", "IN_PROGRESS"].includes(trip.status)
             );
         }
 
-        if (activeFilter === "SCHEDULED") {
-            // Viajes programados para el futuro
+        if (activeFilter === 'scheduled') {
             return trips.filter(trip => trip.status === "SCHEDULED");
         }
 
-        if (activeFilter === "COMPLETED") {
-            // Viajes completados
+        if (activeFilter === 'completed') {
             return trips.filter(trip => trip.status === "COMPLETED");
         }
 
-        if (activeFilter === "CANCELLED") {
-            // Viajes cancelados
+        if (activeFilter === 'cancelled') {
             return trips.filter(trip => trip.status === "CANCELLED");
         }
 
         return [];
     };
 
-    // Navegar a los detalles de un viaje
+    // Navegar a los detalles del viaje
     const handleTripPress = (trip: Trip) => {
         if (trip.status === "COMPLETED") {
-            // Si está completado, ir al resumen
             router.push(`/trip/summary?tripId=${trip.id}`);
         } else {
-            // De lo contrario, ir a los detalles
             router.push(`/trip/details?tripId=${trip.id}`);
         }
     };
 
-    // Obtener ícono según el estado del viaje
-    const getTripStatusIcon = (status: string) => {
-        switch (status) {
-            case "SEARCHING":
-                return { name: "search", color: colors.primary };
-            case "CONFIRMED":
-                return { name: "checkmark-circle", color: colors.primary };
-            case "ARRIVED":
-                return { name: "location", color: colors.success };
-            case "IN_PROGRESS":
-                return { name: "car", color: colors.primary };
-            case "COMPLETED":
-                return { name: "checkmark-done-circle", color: colors.success };
-            case "CANCELLED":
-                return { name: "close-circle", color: colors.error };
-            case "SCHEDULED":
-                return { name: "calendar", color: colors.warning };
-            default:
-                return { name: "help-circle", color: colors.text.secondary };
-        }
-    };
-
-    // Obtener texto descriptivo del estado
-    const getTripStatusText = (status: string) => {
-        switch (status) {
-            case "SEARCHING":
-                return "Buscando conductor";
-            case "CONFIRMED":
-                return "Conductor en camino";
-            case "ARRIVED":
-                return "Conductor ha llegado";
-            case "IN_PROGRESS":
-                return "En viaje";
-            case "COMPLETED":
-                return "Completado";
-            case "CANCELLED":
-                return "Cancelado";
-            case "SCHEDULED":
-                return "Programado";
-            default:
-                return "Estado desconocido";
-        }
-    };
-
-    // Formatear fecha
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return "";
-
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-EC', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    // Renderizar un elemento de la lista de viajes
-    const renderTripItem = ({ item }: { item: Trip }) => {
-        const statusIcon = getTripStatusIcon(item.status);
+    // Renderizar cada chip de filtro
+    const renderFilterChip = (
+        label: string,
+        value: 'all' | 'active' | 'scheduled' | 'completed' | 'cancelled',
+        icon: keyof typeof Ionicons.glyphMap
+    ) => {
+        const isActive = activeFilter === value;
 
         return (
             <TouchableOpacity
-                style={[styles.tripItem, { backgroundColor: colors.background.secondary }]}
-                onPress={() => handleTripPress(item)}
+                key={value}
+                style={[
+                    styles.filterChip,
+                    isActive && { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                ]}
+                onPress={() => setActiveFilter(value)}
             >
-                <View style={[styles.statusIconContainer, { backgroundColor: statusIcon.color + '20' }]}>
-                    <Ionicons name={statusIcon.name as any} size={24} color={statusIcon.color} />
-                </View>
-
-                <View style={styles.tripDetails}>
-                    <View style={styles.tripHeader}>
-                        <Text style={[styles.tripType, { color: colors.text.primary }]}>
-                            {item.type === "ON_DEMAND" ? "NILO" : "NILO Rental"}
-                        </Text>
-                        <Text style={[styles.tripStatus, { color: statusIcon.color }]}>
-                            {getTripStatusText(item.status)}
-                        </Text>
-                    </View>
-
-                    <View style={styles.tripLocations}>
-                        <View style={styles.locationRow}>
-                            <View style={[styles.locationDot, { backgroundColor: colors.success }]} />
-                            <Text style={[styles.locationText, { color: colors.text.secondary }]} numberOfLines={1}>
-                                {item.startLocation?.name || "Punto de origen"}
-                            </Text>
-                        </View>
-
-                        <View style={styles.locationRow}>
-                            <View style={[styles.locationDot, { backgroundColor: colors.error }]} />
-                            <Text style={[styles.locationText, { color: colors.text.secondary }]} numberOfLines={1}>
-                                {item.endLocation?.name || "Punto de destino"}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.tripFooter}>
-                        <Text style={[styles.tripDate, { color: colors.text.tertiary }]}>
-                            {item.startedAt ? formatDate(item.startedAt) :
-                                item.scheduledAt ? formatDate(item.scheduledAt) :
-                                    formatDate(new Date().toISOString())}
-                        </Text>
-
-                        {item.price && (
-                            <Text style={[styles.tripPrice, { color: colors.text.primary }]}>
-                                ${item.price.toFixed(2)}
-                            </Text>
-                        )}
-                    </View>
-                </View>
+                <Ionicons
+                    name={icon}
+                    size={16}
+                    color={isActive ? colors.primary : colors.text.secondary}
+                    style={styles.filterChipIcon}
+                />
+                <Text variant="caption" color={isActive ? "accent" : "secondary"} weight={isActive ? "semibold" : "normal"}>
+                    {label}
+                </Text>
             </TouchableOpacity>
         );
     };
 
-    // Renderizar filtros
-    const renderFilterButton = (filter: TripFilter, label: string, icon: string) => (
-        <TouchableOpacity
-            style={[
-                styles.filterButton,
-                activeFilter === filter && { backgroundColor: colors.primary + '20' },
-            ]}
-            onPress={() => setActiveFilter(filter)}
-        >
-            <Ionicons
-                name={icon as any}
-                size={20}
-                color={activeFilter === filter ? colors.primary : colors.text.secondary}
-            />
-            <Text
-                style={[
-                    styles.filterButtonText,
-                    { color: activeFilter === filter ? colors.primary : colors.text.secondary },
-                ]}
-            >
-                {label}
-            </Text>
-        </TouchableOpacity>
-    );
+    const filteredTrips = getFilteredTrips();
 
-    // Renderizar mensaje cuando no hay viajes
-    const renderEmptyList = () => {
-        if (isLoading) {
-            return (
-                <View style={styles.emptyContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
-                        Cargando viajes...
-                    </Text>
-                </View>
-            );
+    // Renderizar estado vacío según el filtro activo
+    const renderEmptyState = () => {
+        let icon: keyof typeof Ionicons.glyphMap = 'car-outline';
+        let title = 'No hay viajes';
+        let description = '';
+
+        switch (activeFilter) {
+            case 'active':
+                title = 'No hay viajes activos';
+                description = 'Solicita un NILO para comenzar a viajar';
+                break;
+            case 'scheduled':
+                icon = 'calendar-outline';
+                title = 'No hay viajes programados';
+                description = 'Programa un viaje para más tarde';
+                break;
+            case 'completed':
+                icon = 'checkmark-done-outline';
+                title = 'No hay viajes completados';
+                description = 'Tus viajes completados aparecerán aquí';
+                break;
+            case 'cancelled':
+                icon = 'close-circle-outline';
+                title = 'No hay viajes cancelados';
+                description = 'No has cancelado ningún viaje';
+                break;
+            default:
+                title = 'No hay viajes';
+                description = 'Solicita un NILO para comenzar a viajar';
         }
 
         return (
-            <View style={styles.emptyContainer}>
-                <Ionicons name="car-outline" size={64} color={colors.text.tertiary} />
-                <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
-                    No hay viajes {getEmptyStateMessage()}
-                </Text>
-                <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
-                    {getEmptyStateDescription()}
-                </Text>
-
-                <TouchableOpacity
-                    style={[styles.newTripButton, { backgroundColor: colors.primary }]}
-                    onPress={() => router.push('/trip/planner')}
-                >
-                    <Text style={styles.newTripButtonText}>Solicitar un NILO</Text>
-                </TouchableOpacity>
-            </View>
+            <EmptyState
+                icon={icon}
+                title={title}
+                description={description}
+                actionLabel="Solicitar un NILO"
+                onAction={() => router.push('/trip/planner')}
+                style={styles.emptyState}
+            />
         );
     };
 
-    // Mensaje para el estado vacío según el filtro activo
-    const getEmptyStateMessage = () => {
-        switch (activeFilter) {
-            case "ACTIVE":
-                return "activos";
-            case "SCHEDULED":
-                return "programados";
-            case "COMPLETED":
-                return "completados";
-            case "CANCELLED":
-                return "cancelados";
-            default:
-                return "";
-        }
-    };
-
-    // Descripción para el estado vacío según el filtro activo
-    const getEmptyStateDescription = () => {
-        switch (activeFilter) {
-            case "ACTIVE":
-                return "Solicita un NILO para comenzar a viajar";
-            case "SCHEDULED":
-                return "Programa un viaje para más tarde";
-            case "COMPLETED":
-                return "Tus viajes completados aparecerán aquí";
-            case "CANCELLED":
-                return "No has cancelado ningún viaje";
-            default:
-                return "Solicita un NILO para comenzar";
-        }
-    };
-
-    const filteredTrips = getFilteredTrips();
-
     return (
-        <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
-            {/* Encabezado */}
-            <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
-                    Mis Viajes
-                </Text>
-                <TouchableOpacity
-                    style={[styles.requestButton, { backgroundColor: colors.primary }]}
-                    onPress={() => router.push('/trip/planner')}
-                >
-                    <Ionicons name="add" size={20} color="white" />
-                    <Text style={styles.requestButtonText}>Nuevo</Text>
-                </TouchableOpacity>
-            </View>
+        <GestureHandlerRootView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+            <Header title="Mis Viajes" showBackButton />
 
             {/* Filtros */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filtersContainer}
-                contentContainerStyle={styles.filtersContent}
-            >
-                {renderFilterButton("ACTIVE", "Activos", "time-outline")}
-                {renderFilterButton("SCHEDULED", "Programados", "calendar-outline")}
-                {renderFilterButton("COMPLETED", "Completados", "checkmark-circle-outline")}
-                {renderFilterButton("CANCELLED", "Cancelados", "close-circle-outline")}
-                {renderFilterButton("ALL", "Todos", "list-outline")}
-            </ScrollView>
+            <View style={styles.filtersContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContent}>
+                    {renderFilterChip('Activos', 'active', 'time')}
+                    {renderFilterChip('Programados', 'scheduled', 'calendar')}
+                    {renderFilterChip('Completados', 'completed', 'checkmark-circle')}
+                    {renderFilterChip('Cancelados', 'cancelled', 'close-circle')}
+                    {renderFilterChip('Todos', 'all', 'list')}
+                </ScrollView>
+            </View>
 
             {/* Lista de viajes */}
-            <FlatList
-                data={filteredTrips}
-                renderItem={renderTripItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={renderEmptyList}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-                }
-            />
-        </View>
+            {filteredTrips.length > 0 ? (
+                <FlatList
+                    data={filteredTrips}
+                    renderItem={({ item }) => (
+                        <TripItem
+                            trip={item}
+                            onPress={() => handleTripPress(item)}
+                        />
+                    )}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary]}
+                        />
+                    }
+                />
+            ) : (
+                renderEmptyState()
+            )}
+
+            <FloatingActionButton icon="add" onPress={() => router.push('/trip/planner')} position="bottomRight" />
+
+            <LoadingOverlay visible={isLoading && !refreshing} text="Cargando viajes..." />
+        </GestureHandlerRootView>
     );
 }
-
-// Componente ScrollView para los filtros
-const ScrollView = ({ children, ...props }: any) => {
-    return (
-        <View {...props}>
-            <View {...props.contentContainerStyle}>{children}</View>
-        </View>
-    );
-};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 16,
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-    },
-    requestButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 16,
-    },
-    requestButtonText: {
-        color: "white",
-        fontWeight: "600",
-        marginLeft: 4,
-    },
     filtersContainer: {
-        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)'
     },
     filtersContent: {
-        flexDirection: "row",
-        paddingBottom: 12,
+        paddingHorizontal: 16,
+        flexDirection: 'row'
     },
-    filterButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 8,
+    filterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 12,
-        marginRight: 8,
+        paddingVertical: 6,
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.1)',
+        marginRight: 8
     },
-    filterButtonText: {
-        fontWeight: "500",
-        marginLeft: 4,
+    filterChipIcon: {
+        marginRight: 6
     },
     listContent: {
         padding: 16,
-        paddingBottom: 100, // Espacio extra para el bottom tab
+        paddingBottom: 100, // Espacio extra para el FAB
     },
-    tripItem: {
-        flexDirection: "row",
-        borderRadius: 12,
-        padding: 16,
+    emptyState: {
+        marginTop: 60
+    },
+    tripCard: {
         marginBottom: 16,
-    },
-    statusIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: 16,
-    },
-    tripDetails: {
-        flex: 1,
     },
     tripHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
     },
-    tripType: {
-        fontSize: 16,
-        fontWeight: "600",
+    tripTypeContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginRight: 8,
     },
-    tripStatus: {
-        fontSize: 14,
-        fontWeight: "500",
-    },
-    tripLocations: {
-        marginBottom: 12,
+    locationContainer: {
+        marginVertical: 4,
     },
     locationRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 8,
+        marginVertical: 4,
     },
     locationDot: {
         width: 8,
@@ -440,47 +417,24 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         marginRight: 8,
     },
-    locationText: {
-        fontSize: 14,
+    locationConnector: {
+        paddingLeft: 4,
+        height: 16,
+    },
+    verticalLine: {
+        width: 1,
+        height: "100%",
     },
     tripFooter: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
     },
-    tripDate: {
-        fontSize: 12,
-    },
-    tripPrice: {
-        fontSize: 16,
-        fontWeight: "600",
-    },
-    emptyContainer: {
+    tripInfoRow: {
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-        marginTop: 40,
     },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        marginTop: 16,
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    emptyText: {
-        fontSize: 14,
-        textAlign: "center",
-        marginBottom: 24,
-    },
-    newTripButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 8,
-    },
-    newTripButtonText: {
-        color: "white",
-        fontSize: 16,
-        fontWeight: "600",
+    tripInfoItem: {
+        marginRight: 16,
     },
 });

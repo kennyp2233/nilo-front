@@ -28,7 +28,12 @@ export const storageService = {
             if (jsonValue === null) {
                 return defaultValue ?? null;
             }
-            return JSON.parse(jsonValue) as T;
+            try {
+                return JSON.parse(jsonValue) as T;
+            } catch (parseError) {
+                // Si ocurre un error al parsear, es posible que el valor se haya almacenado como texto plano
+                return jsonValue as unknown as T;
+            }
         } catch (error) {
             console.error(`Error recuperando ${key} de AsyncStorage:`, error);
             return defaultValue ?? null;
