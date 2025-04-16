@@ -1,78 +1,72 @@
-// src/stores/authStore.ts (Actualizado)
+// src/stores/authStore.ts
 import { create } from 'zustand';
 import { authService } from '@/src/services';
-import { RegisterUserData, LoginCredentials } from '@/src/services';
-
-interface User {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    profilePicture?: string;
-    role: 'PASSENGER' | 'DRIVER' | 'ADMIN';
-    // Propiedades adicionales basadas en el rol
-    passenger?: any;
-    driver?: any;
-}
+import { LoginCredentials, RegisterUserData } from '@/src/services';
+import { websocketService } from '../services/core/websocketService';
 
 interface AuthState {
-    user: User | null;
+    user: any | null;
     token: string | null;
     isLoading: boolean;
     error: string | null;
 
-    // Acciones
     initialize: () => Promise<void>;
-    login: (email: string, password: string) => Promise<boolean>;
+    login: (credentials: LoginCredentials) => Promise<boolean>;
     register: (userData: RegisterUserData) => Promise<boolean>;
     logout: () => Promise<void>;
-    updateProfile: (profileData: any) => Promise<boolean>;
+    updateProfile: (profileData: any) => Promise<any>;
     clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     token: null,
-    isLoading: false,
+    isLoading: true,
     error: null,
 
-    // Inicializar estado de autenticación desde almacenamiento
+    // Inicializar el estado de autenticación desde el almacenamiento
     initialize: async () => {
-        set({ isLoading: true });
         try {
-            const authData = await authService.initialize();
+            const auth = await authService.initialize();
 
-            if (authData) {
+            if (auth) {
                 set({
-                    user: authData.user,
-                    token: authData.token,
+                    user: auth.user,
+                    token: auth.token,
                     isLoading: false
                 });
+
+                // Inicializar WebSocket si tenemos token
+                if (auth.token) {
+                    websocketService.initialize(auth.token);
+                }
             } else {
-                set({ isLoading: false });
+                set({ user: null, token: null, isLoading: false });
             }
         } catch (error: any) {
-            console.error('Error inicializando auth:', error);
+            console.error('Error inicializando autenticación:', error);
             set({
+                user: null,
+                token: null,
                 isLoading: false,
-                error: error?.response?.data?.message || error.message || 'Error al inicializar'
+                error: error?.message || 'Error al inicializar la autenticación'
             });
         }
     },
 
-    // Login
-    login: async (email: string, password: string) => {
+    // Iniciar sesión con credenciales
+    login: async (credentials: LoginCredentials) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await authService.login({ email, password });
-            set({
-                user: response.user,
-                token: response.token,
-                isLoading: false
-            });
+            const { user, token } = await authService.login(credentials);
+            set({ user, token, isLoading: false });
+
+            // Inicializar WebSocket al iniciar sesión
+            websocketService.initialize(token);
+
             return true;
         } catch (error: any) {
-            console.error('Error de login:', error);
+            console.error('Error en login:', error);
             set({
                 isLoading: false,
                 error: error?.response?.data?.message || error.message || 'Error al iniciar sesión'
@@ -81,19 +75,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
     },
 
-    // Registro
+    // Registrar un nuevo usuario
     register: async (userData: RegisterUserData) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await authService.register(userData);
-            set({
-                user: response.user,
-                token: response.token,
-                isLoading: false
-            });
+            const { user, token } = await authService.register(userData);
+            set({ user, token, isLoading: false });
+
+            // Inicializar WebSocket al registrarse
+            websocketService.initialize(token);
+
             return true;
         } catch (error: any) {
-            console.error('Error de registro:', error);
+            console.error('Error en registro:', error);
             set({
                 isLoading: false,
                 error: error?.response?.data?.message || error.message || 'Error al registrarse'
@@ -102,45 +96,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
     },
 
-    // Logout
+    // Cerrar sesión
     logout: async () => {
         set({ isLoading: true });
         try {
             await authService.logout();
-            set({
-                user: null,
-                token: null,
-                isLoading: false
-            });
+
+            // Desconectar WebSocket al cerrar sesión
+            websocketService.disconnect();
+
+            set({ user: null, token: null, isLoading: false });
         } catch (error: any) {
-            console.error('Error de logout:', error);
+            console.error('Error en logout:', error);
             set({
                 isLoading: false,
-                error: error.message || 'Error al cerrar sesión'
+                error: error?.response?.data?.message || error.message || 'Error al cerrar sesión'
             });
         }
     },
 
-    // Actualizar perfil
+    // Actualizar perfil de usuario
     updateProfile: async (profileData: any) => {
         set({ isLoading: true, error: null });
         try {
             const updatedUser = await authService.updateProfile(profileData);
-            set({
-                user: { ...get().user, ...updatedUser },
-                isLoading: false
-            });
-            return true;
+            set({ user: updatedUser, isLoading: false });
+            return updatedUser;
         } catch (error: any) {
-            console.error('Error al actualizar perfil:', error);
+            console.error('Error actualizando perfil:', error);
             set({
                 isLoading: false,
                 error: error?.response?.data?.message || error.message || 'Error al actualizar perfil'
             });
-            return false;
+            throw error;
         }
     },
 
-    // Limpiar error
+    // Limpiar errores
     clearError: () => set({ error: null })
 }));
