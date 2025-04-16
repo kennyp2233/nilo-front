@@ -1,4 +1,4 @@
-// src/stores/tripStore.ts (Actualizado)
+// src/stores/tripStore.ts
 import { create } from 'zustand';
 import { tripService, locationService } from '@/src/services';
 import { Location, Trip, TripRequest } from '@/src/services';
@@ -9,6 +9,7 @@ interface TripState {
     isLoading: boolean;
     error: string | null;
     route: any | null;
+    realtimeUpdates: boolean;
 
     // Acciones
     fetchTrips: (status?: string) => Promise<void>;
@@ -20,6 +21,8 @@ interface TripState {
     fetchRoute: (startLocation: Location, endLocation: Location) => Promise<any>;
     clearError: () => void;
     setActiveTrip: (trip: Trip | null) => void;
+    updateTripFromRealtime: (tripId: string, data: Partial<Trip>) => void;
+    setRealtimeUpdates: (enabled: boolean) => void;
 }
 
 export const useTripStore = create<TripState>((set, get) => ({
@@ -28,6 +31,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     isLoading: false,
     error: null,
     route: null,
+    realtimeUpdates: true, // Habilitado por defecto
 
     // Obtener todos los viajes o filtrados por estado
     fetchTrips: async (status?: string) => {
@@ -173,6 +177,36 @@ export const useTripStore = create<TripState>((set, get) => ({
             });
             return null;
         }
+    },
+
+    // Actualizar un viaje con datos en tiempo real (WebSockets)
+    updateTripFromRealtime: (tripId: string, data: Partial<Trip>) => {
+        const { realtimeUpdates } = get();
+
+        // Si las actualizaciones en tiempo real están deshabilitadas, no hacer nada
+        if (!realtimeUpdates) return;
+
+        // Actualizar viaje activo si es el mismo
+        if (get().activeTrip?.id === tripId) {
+            set({
+                activeTrip: {
+                    ...get().activeTrip,
+                    ...data
+                } as Trip
+            });
+        }
+
+        // Actualizar en la lista de viajes
+        const updatedTrips = get().trips.map(trip =>
+            trip.id === tripId ? { ...trip, ...data } : trip
+        );
+
+        set({ trips: updatedTrips });
+    },
+
+    // Activar/desactivar actualizaciones en tiempo real
+    setRealtimeUpdates: (enabled: boolean) => {
+        set({ realtimeUpdates: enabled });
     },
 
     // Limpiar error

@@ -10,7 +10,8 @@ import {
     ActivityIndicator,
     ScrollView,
     Dimensions,
-    Animated
+    Animated,
+    Pressable
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -20,15 +21,6 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Trip status types
-type TripStatus =
-    | "SEARCHING"   // Buscando conductor
-    | "CONFIRMED"   // Conductor encontrado, en camino
-    | "ARRIVED"     // Conductor llegó al origen
-    | "IN_PROGRESS" // Viaje en progreso
-    | "COMPLETED"   // Viaje finalizado
-    | "CANCELLED";  // Viaje cancelado
-
 export default function TripDetailsScreen() {
     const { colors } = useTheme();
     const router = useRouter();
@@ -37,31 +29,36 @@ export default function TripDetailsScreen() {
         fetchTripDetails,
         activeTrip,
         updateTripStatus,
+        cancelTrip,
         isLoading,
         route,
-        error
+        error,
+        driverLocation,
+        searchTimeElapsed,
+        estimatedArrival,
+        wsConnected
     } = useTrip(tripId);
 
-    const [elapsedTime, setElapsedTime] = useState<number>(0);
-    const [estimatedArrival, setEstimatedArrival] = useState<number>(5);
-    const pulseAnim = useRef(new Animated.Value(1)).current;
     const [searchingMessages, setSearchingMessages] = useState<string[]>([
         "Buscando conductores cercanos...",
     ]);
 
-    // Poll for trip updates every 5 seconds
-    useEffect(() => {
-        if (tripId) {
-            fetchTripDetails(tripId);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
 
-            // Set up polling for updates
-            const pollInterval = setInterval(() => {
-                fetchTripDetails(tripId);
-            }, 5000);
+    // Actualizar el tiempo restante estimado para asignación
+    const getTimeRemaining = () => {
+        if (!searchTimeElapsed) return 120; // 2 minutos por defecto
+        return Math.max(0, 120 - searchTimeElapsed);
+    };
 
-            return () => clearInterval(pollInterval);
-        }
-    }, [tripId]);
+    const timeRemaining = getTimeRemaining();
+
+    // Formatear tiempo
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
 
     // Pulse animation for the searching indicator
     useEffect(() => {
@@ -89,32 +86,18 @@ export default function TripDetailsScreen() {
         }
     }, [activeTrip?.status]);
 
-    // Update elapsed time
+    // Actualizar mensajes de búsqueda basados en el tiempo transcurrido
     useEffect(() => {
-        if (activeTrip && ["SEARCHING", "CONFIRMED", "ARRIVED", "IN_PROGRESS"].includes(activeTrip.status)) {
-            const timer = setInterval(() => {
-                setElapsedTime(prev => prev + 1);
-
-                // Add searching messages at specific intervals
-                if (activeTrip.status === "SEARCHING") {
-                    if (elapsedTime === 10 && searchingMessages.length === 1) {
-                        setSearchingMessages(prev => [...prev, "Varios conductores están cerca..."]);
-                        setEstimatedArrival(3);
-                    } else if (elapsedTime === 20 && searchingMessages.length === 2) {
-                        setSearchingMessages(prev => [...prev, "Conectando con el mejor conductor para ti..."]);
-                        setEstimatedArrival(2);
-                    }
-                }
-
-                // Update estimated arrival time
-                if (activeTrip.status === "CONFIRMED" && elapsedTime % 30 === 0) {
-                    setEstimatedArrival(prev => Math.max(1, prev - 1));
-                }
-            }, 1000);
-
-            return () => clearInterval(timer);
+        if (activeTrip?.status === "SEARCHING") {
+            if (searchTimeElapsed >= 10 && searchTimeElapsed < 20 && searchingMessages.length === 1) {
+                setSearchingMessages(prev => [...prev, "Varios conductores están cerca..."]);
+            } else if (searchTimeElapsed >= 20 && searchTimeElapsed < 40 && searchingMessages.length === 2) {
+                setSearchingMessages(prev => [...prev, "Conectando con el mejor conductor para ti..."]);
+            } else if (searchTimeElapsed >= 40 && searchingMessages.length === 3) {
+                setSearchingMessages(prev => [...prev, "La búsqueda está tomando más tiempo de lo habitual..."]);
+            }
         }
-    }, [activeTrip?.status, elapsedTime]);
+    }, [searchTimeElapsed, activeTrip?.status]);
 
     // Error handling
     useEffect(() => {
@@ -142,7 +125,7 @@ export default function TripDetailsScreen() {
                                 ? "Usuario canceló la búsqueda"
                                 : "Usuario canceló el viaje";
 
-                            const success = await updateTripStatus(tripId, "CANCELLED", reason);
+                            const success = await cancelTrip(tripId, reason);
                             if (success) {
                                 router.replace("/passenger");
                             }
@@ -215,28 +198,11 @@ export default function TripDetailsScreen() {
         );
     }
 
-    // Mock driver data for demo (in real app, this would come from the API)
-    const driverData = activeTrip.driver || {
-        id: "driver123",
-        name: "Carlos Mendoza",
-        rating: 4.8,
-        trips: 328,
-        phone: "+593987654321",
-        photo: "https://placehold.co/200",
-        vehicle: {
-            make: "Toyota",
-            model: "Corolla",
-            year: 2020,
-            color: "Blanco",
-            plate: "ABC-1234"
-        }
-    };
-
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    };
+    // Use driver location from WebSocket if available, otherwise use the one from the trip
+    const currentDriverLocation = driverLocation || (activeTrip.driver ? {
+        latitude: activeTrip.startLocation.latitude - (activeTrip.status === "IN_PROGRESS" ? 0 : 0.005),
+        longitude: activeTrip.startLocation.longitude - (activeTrip.status === "IN_PROGRESS" ? 0 : 0.005),
+    } : null);
 
     // Get status text based on current status
     const getStatusText = () => {
@@ -244,8 +210,7 @@ export default function TripDetailsScreen() {
             case "SEARCHING":
                 return "Buscando tu NILO";
             case "CONFIRMED":
-                return `Tu conductor llegará en ${estimatedArrival} min`;
-
+                return `Tu conductor llegará en ${estimatedArrival || 5} min`;
             case "IN_PROGRESS":
                 return "En viaje";
             case "COMPLETED":
@@ -262,7 +227,8 @@ export default function TripDetailsScreen() {
         switch (activeTrip.status) {
             case "SEARCHING":
                 return colors.primary;
-
+            case "CONFIRMED":
+                return colors.primary;
             case "IN_PROGRESS":
                 return colors.primary;
             case "COMPLETED":
@@ -306,7 +272,6 @@ export default function TripDetailsScreen() {
             case "SEARCHING":
                 return renderSearchingUI();
             case "CONFIRMED":
-
             case "IN_PROGRESS":
                 return renderActiveRideUI();
             case "COMPLETED":
@@ -330,13 +295,23 @@ export default function TripDetailsScreen() {
                     <View style={styles.timeContainer}>
                         <Ionicons name="time-outline" size={20} color={colors.text.secondary} />
                         <Text style={[styles.timeText, { color: colors.text.secondary }]}>
-                            Tiempo de búsqueda: {formatTime(elapsedTime)}
+                            Tiempo de búsqueda: {formatTime(searchTimeElapsed)}
                         </Text>
                     </View>
 
-                    <Text style={[styles.estimatedTime, { color: colors.text.primary }]}>
-                        Tiempo estimado de espera: ~{estimatedArrival} min
-                    </Text>
+                    <View style={styles.timeRemainingContainer}>
+                        <Text style={[styles.estimatedTime, { color: colors.text.primary }]}>
+                            Tiempo estimado de espera: {formatTime(timeRemaining)}
+                        </Text>
+                        {!wsConnected && (
+                            <View style={styles.offlineIndicator}>
+                                <Ionicons name="cloud-offline" size={14} color={colors.warning} />
+                                <Text style={[styles.offlineText, { color: colors.warning }]}>
+                                    Sin conexión en tiempo real
+                                </Text>
+                            </View>
+                        )}
+                    </View>
 
                     <View style={styles.messagesContainer}>
                         {searchingMessages.map((message, index) => (
@@ -378,20 +353,20 @@ export default function TripDetailsScreen() {
                     {/* Driver photo and rating */}
                     <View style={styles.driverInfo}>
                         <Image
-                            source={{ uri: driverData.photo }}
+                            source={{ uri: activeTrip.driver?.photo || "https://placehold.co/200" }}
                             style={styles.driverPhoto}
                             defaultSource={require('@/assets/images/icon.png')} // Fallback to app icon
                         />
 
                         <View style={styles.driverDetails}>
                             <Text style={[styles.driverName, { color: colors.text.primary }]}>
-                                {driverData.name}
+                                {activeTrip.driver?.name || "Carlos Mendoza"}
                             </Text>
 
                             <View style={styles.ratingContainer}>
                                 <Ionicons name="star" size={16} color={colors.warning} />
                                 <Text style={[styles.ratingText, { color: colors.text.secondary }]}>
-                                    {driverData.rating} • {driverData.trips} viajes
+                                    {activeTrip.driver?.rating || "4.8"} • {activeTrip.driver?.trips || "328"} viajes
                                 </Text>
                             </View>
                         </View>
@@ -409,13 +384,13 @@ export default function TripDetailsScreen() {
                             </Text>
                             <View style={[styles.plate, { backgroundColor: colors.background.secondary }]}>
                                 <Text style={[styles.plateText, { color: colors.text.primary }]}>
-                                    {driverData.vehicle.plate}
+                                    {activeTrip.driver?.vehicle?.plate || "ABC-1234"}
                                 </Text>
                             </View>
                         </View>
 
                         <Text style={[styles.vehicleDetails, { color: colors.text.primary }]}>
-                            {driverData.vehicle.make} {driverData.vehicle.model} • {driverData.vehicle.year} • {driverData.vehicle.color}
+                            {activeTrip.driver?.vehicle?.make || "Toyota"} {activeTrip.driver?.vehicle?.model || "Corolla"} • {activeTrip.driver?.vehicle?.year || "2020"} • {activeTrip.driver?.vehicle?.color || "Blanco"}
                         </Text>
                     </View>
                 </View>
@@ -479,7 +454,6 @@ export default function TripDetailsScreen() {
                             </View>
                         </>
                     )}
-
 
                     {activeTrip.status === "IN_PROGRESS" && (
                         <>
@@ -596,12 +570,12 @@ export default function TripDetailsScreen() {
                             />
                         )}
 
-                        {/* Driver marker (simulated position for demo) */}
-                        {activeTrip.status !== "SEARCHING" && activeTrip.status !== "COMPLETED" && activeTrip.status !== "CANCELLED" && (
+                        {/* Driver marker */}
+                        {(activeTrip.status === "CONFIRMED" || activeTrip.status === "IN_PROGRESS") && currentDriverLocation && (
                             <Marker
                                 coordinate={{
-                                    latitude: activeTrip.startLocation.latitude - (activeTrip.status === "IN_PROGRESS" ? 0 : 0.005),
-                                    longitude: activeTrip.startLocation.longitude - (activeTrip.status === "IN_PROGRESS" ? 0 : 0.005),
+                                    latitude: currentDriverLocation.latitude,
+                                    longitude: currentDriverLocation.longitude,
                                 }}
                                 title="Conductor"
                             >
@@ -639,6 +613,20 @@ export default function TripDetailsScreen() {
                         </View>
                     </View>
                 )}
+
+                {/* WebSocket connection indicator */}
+                <Pressable
+                    style={[
+                        styles.wsIndicator,
+                        { backgroundColor: wsConnected ? colors.success + '40' : colors.error + '40' }
+                    ]}
+                >
+                    <Ionicons
+                        name={wsConnected ? ("wifi-outline" as any) : ("wifi-off-outline" as any)}
+                        size={16}
+                        color={wsConnected ? colors.success : colors.error}
+                    />
+                </Pressable>
             </View>
 
             {/* Status bar */}
@@ -708,6 +696,18 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
 
+    // WebSocket indicator
+    wsIndicator: {
+        position: "absolute",
+        top: 10,
+        right: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+
     // Searching UI
     pulseContainer: {
         position: "absolute",
@@ -753,10 +753,23 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginLeft: 6,
     },
+    timeRemainingContainer: {
+        alignItems: "center",
+        marginBottom: 16,
+    },
     estimatedTime: {
         fontSize: 16,
         textAlign: "center",
-        marginBottom: 20,
+        marginBottom: 4,
+    },
+    offlineIndicator: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 4,
+    },
+    offlineText: {
+        fontSize: 12,
+        marginLeft: 4,
     },
     messagesContainer: {
         marginBottom: 24,

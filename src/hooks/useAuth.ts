@@ -46,5 +46,6 @@ export function useAuth(requireAuth = false) {
         logout,
         updateProfile,
         clearError,
+        token
     };
 }
